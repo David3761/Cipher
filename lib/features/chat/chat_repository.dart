@@ -52,11 +52,17 @@ class MessagesRepository {
   Future<void> updateMessageStatus(
     List<String> messageIds,
     MessageStatus newStatus,
+    DateTime? readAt,
   ) async {
     if (messageIds.isEmpty) return;
-    await (_db.update(_db.messages)
-          ..where((row) => row.messageId.isIn(messageIds)))
-        .write(MessagesCompanion(status: Value(newStatus)));
+    await (_db.update(
+      _db.messages,
+    )..where((row) => row.messageId.isIn(messageIds))).write(
+      MessagesCompanion(
+        status: Value(newStatus),
+        readAt: readAt != null ? Value(readAt) : const Value.absent(),
+      ),
+    );
   }
 }
 

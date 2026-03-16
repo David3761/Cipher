@@ -17,4 +17,5 @@ class Messages extends Table {
   BoolColumn get isFromMe => boolean()();
   IntColumn get status => intEnum<MessageStatus>()();
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get readAt => dateTime().nullable()();
 }

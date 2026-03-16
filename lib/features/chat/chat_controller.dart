@@ -62,7 +62,11 @@ class ChatController extends AsyncNotifier<void> {
 
       wsService.ackStream?.firstWhere((id) => id == messageId).then((id) async {
         final repository = await ref.read(chatRepositoryProvider.future);
-        await repository.updateMessageStatus([id], MessageStatus.delivered);
+        await repository.updateMessageStatus(
+          [id],
+          MessageStatus.delivered,
+          null,
+        );
       });
 
       state = const AsyncValue.data(null);
@@ -138,7 +142,11 @@ class ChatController extends AsyncNotifier<void> {
         theirPublicKeyHex: contact.publicKey,
       );
 
-      await repository.updateMessageStatus(messageIds, MessageStatus.read);
+      await repository.updateMessageStatus(
+        messageIds,
+        MessageStatus.read,
+        DateTime.now(),
+      );
 
       wsService.sendMessage(
         messageId: const Uuid().v4(),

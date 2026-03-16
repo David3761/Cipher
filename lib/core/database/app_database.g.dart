@@ -393,6 +393,15 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _readAtMeta = const VerificationMeta('readAt');
+  @override
+  late final GeneratedColumn<DateTime> readAt = GeneratedColumn<DateTime>(
+    'read_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -402,6 +411,7 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     isFromMe,
     status,
     timestamp,
+    readAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -456,6 +466,12 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
       );
     }
+    if (data.containsKey('read_at')) {
+      context.handle(
+        _readAtMeta,
+        readAt.isAcceptableOrUnknown(data['read_at']!, _readAtMeta),
+      );
+    }
     return context;
   }
 
@@ -495,6 +511,10 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}timestamp'],
       )!,
+      readAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}read_at'],
+      ),
     );
   }
 
@@ -515,6 +535,7 @@ class Message extends DataClass implements Insertable<Message> {
   final bool isFromMe;
   final MessageStatus status;
   final DateTime timestamp;
+  final DateTime? readAt;
   const Message({
     required this.id,
     required this.messageId,
@@ -523,6 +544,7 @@ class Message extends DataClass implements Insertable<Message> {
     required this.isFromMe,
     required this.status,
     required this.timestamp,
+    this.readAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -538,6 +560,9 @@ class Message extends DataClass implements Insertable<Message> {
       );
     }
     map['timestamp'] = Variable<DateTime>(timestamp);
+    if (!nullToAbsent || readAt != null) {
+      map['read_at'] = Variable<DateTime>(readAt);
+    }
     return map;
   }
 
@@ -550,6 +575,9 @@ class Message extends DataClass implements Insertable<Message> {
       isFromMe: Value(isFromMe),
       status: Value(status),
       timestamp: Value(timestamp),
+      readAt: readAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readAt),
     );
   }
 
@@ -568,6 +596,7 @@ class Message extends DataClass implements Insertable<Message> {
         serializer.fromJson<int>(json['status']),
       ),
       timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      readAt: serializer.fromJson<DateTime?>(json['readAt']),
     );
   }
   @override
@@ -583,6 +612,7 @@ class Message extends DataClass implements Insertable<Message> {
         $MessagesTable.$converterstatus.toJson(status),
       ),
       'timestamp': serializer.toJson<DateTime>(timestamp),
+      'readAt': serializer.toJson<DateTime?>(readAt),
     };
   }
 
@@ -594,6 +624,7 @@ class Message extends DataClass implements Insertable<Message> {
     bool? isFromMe,
     MessageStatus? status,
     DateTime? timestamp,
+    Value<DateTime?> readAt = const Value.absent(),
   }) => Message(
     id: id ?? this.id,
     messageId: messageId ?? this.messageId,
@@ -602,6 +633,7 @@ class Message extends DataClass implements Insertable<Message> {
     isFromMe: isFromMe ?? this.isFromMe,
     status: status ?? this.status,
     timestamp: timestamp ?? this.timestamp,
+    readAt: readAt.present ? readAt.value : this.readAt,
   );
   Message copyWithCompanion(MessagesCompanion data) {
     return Message(
@@ -612,6 +644,7 @@ class Message extends DataClass implements Insertable<Message> {
       isFromMe: data.isFromMe.present ? data.isFromMe.value : this.isFromMe,
       status: data.status.present ? data.status.value : this.status,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      readAt: data.readAt.present ? data.readAt.value : this.readAt,
     );
   }
 
@@ -624,7 +657,8 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('content: $content, ')
           ..write('isFromMe: $isFromMe, ')
           ..write('status: $status, ')
-          ..write('timestamp: $timestamp')
+          ..write('timestamp: $timestamp, ')
+          ..write('readAt: $readAt')
           ..write(')'))
         .toString();
   }
@@ -638,6 +672,7 @@ class Message extends DataClass implements Insertable<Message> {
     isFromMe,
     status,
     timestamp,
+    readAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -649,7 +684,8 @@ class Message extends DataClass implements Insertable<Message> {
           other.content == this.content &&
           other.isFromMe == this.isFromMe &&
           other.status == this.status &&
-          other.timestamp == this.timestamp);
+          other.timestamp == this.timestamp &&
+          other.readAt == this.readAt);
 }
 
 class MessagesCompanion extends UpdateCompanion<Message> {
@@ -660,6 +696,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<bool> isFromMe;
   final Value<MessageStatus> status;
   final Value<DateTime> timestamp;
+  final Value<DateTime?> readAt;
   const MessagesCompanion({
     this.id = const Value.absent(),
     this.messageId = const Value.absent(),
@@ -668,6 +705,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.isFromMe = const Value.absent(),
     this.status = const Value.absent(),
     this.timestamp = const Value.absent(),
+    this.readAt = const Value.absent(),
   });
   MessagesCompanion.insert({
     this.id = const Value.absent(),
@@ -677,6 +715,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     required bool isFromMe,
     required MessageStatus status,
     this.timestamp = const Value.absent(),
+    this.readAt = const Value.absent(),
   }) : messageId = Value(messageId),
        contactId = Value(contactId),
        content = Value(content),
@@ -690,6 +729,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<bool>? isFromMe,
     Expression<int>? status,
     Expression<DateTime>? timestamp,
+    Expression<DateTime>? readAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -699,6 +739,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (isFromMe != null) 'is_from_me': isFromMe,
       if (status != null) 'status': status,
       if (timestamp != null) 'timestamp': timestamp,
+      if (readAt != null) 'read_at': readAt,
     });
   }
 
@@ -710,6 +751,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Value<bool>? isFromMe,
     Value<MessageStatus>? status,
     Value<DateTime>? timestamp,
+    Value<DateTime?>? readAt,
   }) {
     return MessagesCompanion(
       id: id ?? this.id,
@@ -719,6 +761,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       isFromMe: isFromMe ?? this.isFromMe,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
+      readAt: readAt ?? this.readAt,
     );
   }
 
@@ -748,6 +791,9 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     if (timestamp.present) {
       map['timestamp'] = Variable<DateTime>(timestamp.value);
     }
+    if (readAt.present) {
+      map['read_at'] = Variable<DateTime>(readAt.value);
+    }
     return map;
   }
 
@@ -760,7 +806,8 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('content: $content, ')
           ..write('isFromMe: $isFromMe, ')
           ..write('status: $status, ')
-          ..write('timestamp: $timestamp')
+          ..write('timestamp: $timestamp, ')
+          ..write('readAt: $readAt')
           ..write(')'))
         .toString();
   }
@@ -1056,6 +1103,7 @@ typedef $$MessagesTableCreateCompanionBuilder =
       required bool isFromMe,
       required MessageStatus status,
       Value<DateTime> timestamp,
+      Value<DateTime?> readAt,
     });
 typedef $$MessagesTableUpdateCompanionBuilder =
     MessagesCompanion Function({
@@ -1066,6 +1114,7 @@ typedef $$MessagesTableUpdateCompanionBuilder =
       Value<bool> isFromMe,
       Value<MessageStatus> status,
       Value<DateTime> timestamp,
+      Value<DateTime?> readAt,
     });
 
 final class $$MessagesTableReferences
@@ -1127,6 +1176,11 @@ class $$MessagesTableFilterComposer
 
   ColumnFilters<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get readAt => $composableBuilder(
+    column: $table.readAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1193,6 +1247,11 @@ class $$MessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get readAt => $composableBuilder(
+    column: $table.readAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ContactsTableOrderingComposer get contactId {
     final $$ContactsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -1243,6 +1302,9 @@ class $$MessagesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get timestamp =>
       $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get readAt =>
+      $composableBuilder(column: $table.readAt, builder: (column) => column);
 
   $$ContactsTableAnnotationComposer get contactId {
     final $$ContactsTableAnnotationComposer composer = $composerBuilder(
@@ -1303,6 +1365,7 @@ class $$MessagesTableTableManager
                 Value<bool> isFromMe = const Value.absent(),
                 Value<MessageStatus> status = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
+                Value<DateTime?> readAt = const Value.absent(),
               }) => MessagesCompanion(
                 id: id,
                 messageId: messageId,
@@ -1311,6 +1374,7 @@ class $$MessagesTableTableManager
                 isFromMe: isFromMe,
                 status: status,
                 timestamp: timestamp,
+                readAt: readAt,
               ),
           createCompanionCallback:
               ({
@@ -1321,6 +1385,7 @@ class $$MessagesTableTableManager
                 required bool isFromMe,
                 required MessageStatus status,
                 Value<DateTime> timestamp = const Value.absent(),
+                Value<DateTime?> readAt = const Value.absent(),
               }) => MessagesCompanion.insert(
                 id: id,
                 messageId: messageId,
@@ -1329,6 +1394,7 @@ class $$MessagesTableTableManager
                 isFromMe: isFromMe,
                 status: status,
                 timestamp: timestamp,
+                readAt: readAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

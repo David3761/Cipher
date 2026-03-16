@@ -73,7 +73,7 @@ class MessageBubble extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 16, bottom: 4),
             child: Text(
-              formatSeenAgo(message.timestamp),
+              formatSeenAgo(message.readAt ?? message.timestamp),
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

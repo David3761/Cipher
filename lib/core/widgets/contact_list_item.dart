@@ -3,12 +3,12 @@ import 'package:chat/core/database/app_database.dart';
 import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/features/chat/chat_repository.dart';
+import 'package:chat/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 
 class ContactListItem extends ConsumerWidget {
   final Contact contact;
@@ -19,26 +19,6 @@ class ContactListItem extends ConsumerWidget {
     required this.contact,
     required this.confirmDelete,
   });
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final localDateTime = dateTime.toLocal();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final diffInDays = now.difference(localDateTime).inDays;
-
-    final timeString = DateFormat('HH:mm').format(localDateTime);
-
-    if (localDateTime.isAfter(today)) {
-      return timeString;
-    } else if (localDateTime.isAfter(yesterday)) {
-      return 'Yesterday';
-    } else if (diffInDays <= 7) {
-      return DateFormat('EEEE').format(localDateTime);
-    } else {
-      return DateFormat('dd.MM.yyyy').format(localDateTime);
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -137,7 +117,7 @@ class ContactListItem extends ConsumerWidget {
                                       final latestMessage = messages.first;
 
                                       return Text(
-                                        _formatDateTime(
+                                        formatDateTimeContact(
                                           latestMessage.timestamp,
                                         ),
                                       );
@@ -168,38 +148,39 @@ class ContactListItem extends ConsumerWidget {
 
                                   messagesStream.when(
                                     data: (messages) {
-                                      if (messages.isNotEmpty &&
-                                          messages.first.status ==
-                                              MessageStatus.delivered) {
-                                        final int index = messages
-                                            .lastIndexWhere(
-                                              (element) =>
-                                                  element.status ==
-                                                      MessageStatus.delivered &&
-                                                  !element.isFromMe,
-                                            );
-                                        return Container(
-                                          width: 20,
-                                          height: 20,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primaryBlue,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            index.toString(),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.clip,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall!
-                                                .copyWith(
-                                                  color: AppColors.white,
-                                                ),
-                                          ),
-                                        );
+                                      final unreadCount = messages
+                                          .where(
+                                            (m) =>
+                                                !m.isFromMe &&
+                                                m.status ==
+                                                    MessageStatus.delivered,
+                                          )
+                                          .length;
+
+                                      if (unreadCount == 0) {
+                                        return const SizedBox.shrink();
                                       }
-                                      return SizedBox.shrink();
+
+                                      return Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryBlue,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          unreadCount > 9
+                                              ? '+9'
+                                              : unreadCount.toString(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.clip,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall!
+                                              .copyWith(color: AppColors.white),
+                                        ),
+                                      );
                                     },
                                     error: (e, st) => SizedBox.shrink(),
                                     loading: () => SizedBox.shrink(),

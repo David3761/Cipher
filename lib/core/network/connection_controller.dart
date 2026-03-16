@@ -139,6 +139,7 @@ class ConnectionController extends Notifier<ConnectionState> {
           await chatRepo.updateMessageStatus(
             readMessageIds,
             MessageStatus.read,
+            null,
           );
 
           debugPrint(

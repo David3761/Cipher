@@ -21,3 +21,23 @@ String formatSeenAgo(DateTime dt) {
   if (diff.inDays == 1) return 'Seen yesterday';
   return 'Seen ${diff.inDays}d ago';
 }
+
+String formatDateTimeContact(DateTime dateTime) {
+  final now = DateTime.now();
+  final localDateTime = dateTime.toLocal();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = DateTime(now.year, now.month, now.day - 1);
+  final diffInDays = now.difference(localDateTime).inDays;
+
+  final timeString = DateFormat('HH:mm').format(localDateTime);
+
+  if (localDateTime.isAfter(today)) {
+    return timeString;
+  } else if (localDateTime.isAfter(yesterday)) {
+    return 'Yesterday';
+  } else if (diffInDays <= 7) {
+    return DateFormat('EEEE').format(localDateTime);
+  } else {
+    return DateFormat('dd.MM.yyyy').format(localDateTime);
+  }
+}
