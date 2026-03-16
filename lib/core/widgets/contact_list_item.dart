@@ -1,5 +1,6 @@
 import 'package:chat/core/app_router.dart';
 import 'package:chat/core/database/app_database.dart';
+import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/features/chat/chat_repository.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,7 @@ class ContactListItem extends ConsumerWidget {
     } else if (localDateTime.isAfter(yesterday)) {
       return 'Yesterday';
     } else if (diffInDays <= 7) {
-      return DateFormat('EEEE').format(localDateTime).toLowerCase();
+      return DateFormat('EEEE').format(localDateTime);
     } else {
       return DateFormat('dd.MM.yyyy').format(localDateTime);
     }
@@ -135,29 +136,10 @@ class ContactListItem extends ConsumerWidget {
 
                                       final latestMessage = messages.first;
 
-                                      // TODO: Update this to read from the Message model
-                                      final bool isUnread = true;
-
-                                      //TODO: Ugly
-                                      return Row(
-                                        children: [
-                                          if (isUnread) ...[
-                                            Container(
-                                              width: 10,
-                                              height: 10,
-                                              decoration: const BoxDecoration(
-                                                color: AppColors.primaryBlue,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                          ],
-                                          Text(
-                                            _formatDateTime(
-                                              latestMessage.timestamp,
-                                            ),
-                                          ),
-                                        ],
+                                      return Text(
+                                        _formatDateTime(
+                                          latestMessage.timestamp,
+                                        ),
                                       );
                                     },
                                     loading: () => const Text('...'),
@@ -167,17 +149,62 @@ class ContactListItem extends ConsumerWidget {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                messagesStream.maybeWhen(
-                                  data: (messages) => messages.isNotEmpty
-                                      ? messages.first.content
-                                      : 'No messages',
-                                  loading: () => 'Loading...',
-                                  error: (_, _) => 'Error loading messages',
-                                  orElse: () => '',
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    messagesStream.maybeWhen(
+                                      data: (messages) => messages.isNotEmpty
+                                          ? messages.first.content
+                                          : 'No messages',
+                                      loading: () => 'Loading...',
+                                      error: (_, _) => 'Error loading messages',
+                                      orElse: () => '',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+
+                                  messagesStream.when(
+                                    data: (messages) {
+                                      if (messages.isNotEmpty &&
+                                          messages.first.status ==
+                                              MessageStatus.delivered) {
+                                        final int index = messages
+                                            .lastIndexWhere(
+                                              (element) =>
+                                                  element.status ==
+                                                      MessageStatus.delivered &&
+                                                  !element.isFromMe,
+                                            );
+                                        return Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryBlue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            index.toString(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.clip,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall!
+                                                .copyWith(
+                                                  color: AppColors.white,
+                                                ),
+                                          ),
+                                        );
+                                      }
+                                      return SizedBox.shrink();
+                                    },
+                                    error: (e, st) => SizedBox.shrink(),
+                                    loading: () => SizedBox.shrink(),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

@@ -40,6 +40,24 @@ class MessagesRepository {
           ),
         );
   }
+
+  Future<List<Message>> getUnreadMessages(int contactId) async {
+    return (_db.select(_db.messages)
+          ..where((row) => row.contactId.equals(contactId))
+          ..where((row) => row.isFromMe.equals(false))
+          ..where((row) => row.status.equals(MessageStatus.delivered.index)))
+        .get();
+  }
+
+  Future<void> updateMessageStatus(
+    List<String> messageIds,
+    MessageStatus newStatus,
+  ) async {
+    if (messageIds.isEmpty) return;
+    await (_db.update(_db.messages)
+          ..where((row) => row.messageId.isIn(messageIds)))
+        .write(MessagesCompanion(status: Value(newStatus)));
+  }
 }
 
 final chatRepositoryProvider = FutureProvider<MessagesRepository>((ref) async {

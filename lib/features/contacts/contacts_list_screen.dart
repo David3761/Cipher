@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:chat/core/app_router.dart';
-// import 'package:chat/core/network/connection_controller.dart';
+import 'package:chat/core/network/connection_controller.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/core/widgets/contact_list_item.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +74,7 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
   @override
   Widget build(BuildContext context) {
     final contactsAsyncValue = ref.watch(contactsStreamProvider);
-    // final connectionState = ref.watch(connectionControllerProvider);
+    final connectionState = ref.watch(connectionControllerProvider);
     //TODO: update ui on disconnect
 
     return Scaffold(

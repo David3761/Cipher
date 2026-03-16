@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:chat/core/database/tables.dart';
 import 'package:chat/features/chat/chat_repository.dart';
 import 'package:chat/features/contacts/contacts_repository.dart';
 import 'package:flutter/foundation.dart';
@@ -84,6 +85,11 @@ class ConnectionController extends Notifier<ConnectionState> {
     final keyState = ref.read(keyControllerProvider);
     if (keyState.activeSecretKey == null) return;
 
+    if (senderPubKey == keyState.publicKeyHex) {
+      debugPrint('Dropping echoed package from myself.');
+      return;
+    }
+
     try {
       final contactsRepo = await ref.read(contactsRepositoryProvider.future);
       var contact = await contactsRepo.getContactByPublicKey(senderPubKey);
@@ -124,6 +130,20 @@ class ConnectionController extends Notifier<ConnectionState> {
           //TODO: separate concerns here
           final newAlias = data['nickname'] as String;
           await contactsRepo.updateAlias(contact.id, newAlias);
+        } else if (data['type'] == 'messages_read') {
+          final List<dynamic> rawIds = data['message_ids'];
+          final List<String> readMessageIds = rawIds.cast<String>();
+
+          final chatRepo = await ref.read(chatRepositoryProvider.future);
+
+          await chatRepo.updateMessageStatus(
+            readMessageIds,
+            MessageStatus.read,
+          );
+
+          debugPrint(
+            'The other user read ${readMessageIds.length} of our messages.',
+          );
         }
       } catch (formatException) {
         final chatRepo = await ref.read(chatRepositoryProvider.future);

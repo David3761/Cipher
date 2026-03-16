@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:chat/core/database/app_database.dart';
+import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/providers.dart';
 import 'package:chat/features/chat/chat_repository.dart';
 import 'package:chat/features/key_management/key_controller.dart';
@@ -59,6 +60,11 @@ class ChatController extends AsyncNotifier<void> {
         encryptedBlob: encryptedBase64Blob,
       );
 
+      wsService.ackStream?.firstWhere((id) => id == messageId).then((id) async {
+        final repository = await ref.read(chatRepositoryProvider.future);
+        await repository.updateMessageStatus([id], MessageStatus.delivered);
+      });
+
       state = const AsyncValue.data(null);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
@@ -101,6 +107,47 @@ class ChatController extends AsyncNotifier<void> {
       );
     } catch (e) {
       debugPrint("Profile sync failed: $e");
+    }
+  }
+
+  Future<void> markAsReadAndNotify(
+    Contact contact,
+    List<String> messageIds,
+  ) async {
+    if (messageIds.isEmpty) return;
+
+    try {
+      final keyState = ref.read(keyControllerProvider);
+      final cryptoService = ref.read(cryptoServiceProvider);
+      final wsService = ref.read(webSocketServiceProvider);
+      final storageService = ref.read(secureStorageProvider);
+      final repository = await ref.read(chatRepositoryProvider.future);
+
+      if (keyState.activeSecretKey == null) return;
+      final myPubKey = await storageService.getLastActiveAccount();
+      if (myPubKey == null) return;
+
+      final payload = jsonEncode({
+        'type': 'messages_read',
+        'message_ids': messageIds,
+      });
+
+      final encryptedBlob = cryptoService.encryptMessage(
+        plainText: payload,
+        mySecretKey: keyState.activeSecretKey!,
+        theirPublicKeyHex: contact.publicKey,
+      );
+
+      await repository.updateMessageStatus(messageIds, MessageStatus.read);
+
+      wsService.sendMessage(
+        messageId: const Uuid().v4(),
+        senderPubKey: myPubKey,
+        recipientPubKey: contact.publicKey,
+        encryptedBlob: encryptedBlob,
+      );
+    } catch (e) {
+      debugPrint("Failed to notify read status: $e");
     }
   }
 }

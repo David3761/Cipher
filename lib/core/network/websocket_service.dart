@@ -6,10 +6,18 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 class WebSocketService {
   WebSocketChannel? _channel;
 
-  Stream<Map<String, dynamic>>? get incomingMessages =>
-      _channel?.stream.map((event) {
-        return jsonDecode(event as String) as Map<String, dynamic>;
-      }).asBroadcastStream();
+  Stream<Map<String, dynamic>>? _broadcastStream;
+
+  Stream<Map<String, dynamic>>? get incomingMessages {
+    _broadcastStream ??= _channel?.stream.map((event) {
+      return jsonDecode(event as String) as Map<String, dynamic>;
+    }).asBroadcastStream();
+    return _broadcastStream;
+  }
+
+  Stream<String>? get ackStream => incomingMessages
+      ?.where((msg) => msg['type'] == 'ack')
+      .map((msg) => msg['message_id'] as String);
 
   Future<void> connect(String myPublicKey) async {
     //TODO: real server
@@ -54,6 +62,7 @@ class WebSocketService {
   void disconnect() {
     _channel?.sink.close();
     _channel = null;
+    _broadcastStream = null;
     debugPrint('WebSocket Disconnected');
   }
 }

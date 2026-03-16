@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-enum MessageStatus { sending, sent, delivered, failed }
+enum MessageStatus { sending, delivered, read, failed }
 
 class Contacts extends Table {
   IntColumn get id => integer().autoIncrement()();

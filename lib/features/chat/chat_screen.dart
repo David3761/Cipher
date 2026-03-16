@@ -1,6 +1,8 @@
+import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/widgets/message_bubble.dart';
 import 'package:chat/core/widgets/send_button.dart';
 import 'package:chat/features/chat/chat_controller.dart';
+import 'package:chat/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,6 +46,41 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _notifyMessagesRead(List<Message> messages) async {
+    final unreadMessageIds = messages
+        .where((m) => !m.isFromMe && m.status == MessageStatus.delivered)
+        .map((m) => m.messageId)
+        .toList();
+
+    if (unreadMessageIds.isNotEmpty && mounted) {
+      await ref
+          .read(chatControllerProvider(widget.contact.id).notifier)
+          .markAsReadAndNotify(widget.contact, unreadMessageIds);
+    }
+  }
+
+  Widget _buildSeparator(BuildContext context, DateTime dt) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              formatConversationSeparator(dt),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final messagesStream = ref.watch(chatStreamProvider(widget.contact.id));
@@ -69,6 +106,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (messages) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _notifyMessagesRead(messages);
+                });
+
                 if (messages.isEmpty) {
                   return const Center(
                     child: Text(
@@ -78,15 +119,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   );
                 }
 
+                final lastMessage = messages.first;
+                final String? showSeenOnId =
+                    (lastMessage.isFromMe &&
+                        lastMessage.status == MessageStatus.read)
+                    ? lastMessage.messageId
+                    : null;
+
+                final List<Widget> items = [];
+
+                for (int i = 0; i < messages.length; i++) {
+                  final message = messages[i];
+                  final isMe = message.isFromMe;
+                  final showSeen = message.messageId == showSeenOnId;
+
+                  items.add(
+                    MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      showSeen: showSeen,
+                    ),
+                  );
+
+                  if (i + 1 < messages.length) {
+                    final olderMessage = messages[i + 1];
+                    final gap = message.timestamp.difference(
+                      olderMessage.timestamp,
+                    );
+
+                    if (gap.inMinutes >= 60) {
+                      items.add(_buildSeparator(context, message.timestamp));
+                    }
+                  }
+                }
+
                 return ListView.builder(
                   reverse: true,
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe = message.isFromMe;
-
-                    return MessageBubble(message: message, isMe: isMe);
-                  },
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => items[index],
                 );
               },
             ),

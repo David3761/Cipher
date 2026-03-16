@@ -123,6 +123,7 @@ class KeyController extends Notifier<KeyState> {
         isLoading: false,
         activeSecretKey: keyPair.secretKey,
         publicKeyHex: pubKeyHex,
+        nickname: 'New account',
       );
     } catch (e) {
       //if an error occurs between creating the key and storing in state
@@ -160,6 +161,7 @@ class KeyController extends Notifier<KeyState> {
         isLoading: false,
         activeSecretKey: seedKey,
         publicKeyHex: pubKeyHex,
+        nickname: 'New account',
       );
     } catch (e) {
       seedKey?.dispose();
@@ -196,7 +198,15 @@ class KeyController extends Notifier<KeyState> {
   }
 
   Future<void> deleteAccount(String publicKey) async {
-    state = KeyState(isLoading: true);
+    final isDeletingActiveAccount = state.publicKeyHex == publicKey;
+
+    state = KeyState(
+      isLoading: true,
+      isKeySetupComplete: state.isKeySetupComplete,
+      activeSecretKey: state.activeSecretKey,
+      publicKeyHex: state.publicKeyHex,
+      nickname: state.nickname,
+    );
 
     try {
       await ref.read(secureStorageProvider).wipeAccountData(publicKey);
@@ -207,7 +217,7 @@ class KeyController extends Notifier<KeyState> {
         await file.delete();
       }
 
-      if (state.publicKeyHex == publicKey) {
+      if (isDeletingActiveAccount) {
         state.activeSecretKey?.dispose();
         state = KeyState(isLoading: false, isKeySetupComplete: false);
       } else {
@@ -216,6 +226,7 @@ class KeyController extends Notifier<KeyState> {
           isLoading: false,
           activeSecretKey: state.activeSecretKey,
           publicKeyHex: state.publicKeyHex,
+          nickname: state.nickname,
         );
       }
     } catch (e) {
@@ -225,6 +236,7 @@ class KeyController extends Notifier<KeyState> {
         isKeySetupComplete: state.isKeySetupComplete,
         activeSecretKey: state.activeSecretKey,
         publicKeyHex: state.publicKeyHex,
+        nickname: state.nickname,
       );
     }
   }

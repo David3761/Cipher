@@ -17,7 +17,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _keyController = TextEditingController();
   String? _inputError;
-  List<String> _knownAccounts = [];
+  Map<String, String> _knownAccounts = {};
 
   @override
   void initState() {
@@ -34,8 +34,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _loadAccounts() async {
     final storage = ref.read(secureStorageProvider);
     final accounts = await storage.getKnownAccounts();
+
+    Map<String, String> accountsMap = {};
+    for (String pubKey in accounts) {
+      final name = await storage.getNickname(pubKey);
+      accountsMap[pubKey] = name ?? 'Unknown account';
+    }
     if (mounted) {
-      setState(() => _knownAccounts = accounts);
+      setState(() => _knownAccounts = accountsMap);
     }
   }
 
@@ -164,23 +170,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
-                      ..._knownAccounts.map(
-                        (pubKey) => Card(
+                      ..._knownAccounts.entries.map(
+                        (entry) => Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
                             leading: const Icon(Icons.person),
                             title: Text(
-                              state.nickname ?? 'Unknown account',
+                              entry.value,
                               style: const TextStyle(
                                 fontFamily: 'Courier',
                                 fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${entry.key.substring(0, 8)}...${entry.key.substring(entry.key.length - 8)}',
+                              style: const TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 12,
                               ),
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
                               ref
                                   .read(keyControllerProvider.notifier)
-                                  .login(pubKey);
+                                  .login(entry.key);
                             },
                           ),
                         ),

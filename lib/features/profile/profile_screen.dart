@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/core/widgets/settings_option.dart';
 import 'package:chat/core/widgets/titled_settings_section.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,29 +59,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _showEditNicknameDialog(String currentNickname) async {
+  Future<void> _showEditNicknameDialog(
+    String publicKey,
+    String currentNickname,
+  ) async {
     final controller = TextEditingController(text: currentNickname);
 
-    final newName = await showDialog<String>(
+    final platform = Theme.of(context).platform;
+    final isIOS = platform == TargetPlatform.iOS;
+
+    final newName = await showAdaptiveDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return AlertDialog.adaptive(
           title: const Text('Edit Profile Name'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'Enter new name'),
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-          ),
+          content: isIOS
+              ? CupertinoTextField(
+                  controller: controller,
+                  placeholder: 'Enter new name',
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                )
+              : TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(hintText: 'Enter new name'),
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Save'),
-            ),
+            if (isIOS) ...[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ] else ...[
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
           ],
         );
       },
@@ -107,43 +137,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _handleDeleteAccount(String pubKey) async {
-    final confirm = await showDialog<bool>(
+    final platform = Theme.of(context).platform;
+    final isIOS = platform == TargetPlatform.iOS;
+
+    final confirm = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog.adaptive(
         title: const Text('Delete Account?'),
         content: const Text(
           'This will permanently erase the private key and all messages for this account from this device. This cannot be undone.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
+          if (isIOS) ...[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete'),
+            ),
+          ] else ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
         ],
       ),
     );
 
-    if (confirm == true) {
-      await ref.read(keyControllerProvider.notifier).deleteAccount(pubKey);
+    if (confirm == true && mounted) {
+      final keyController = ref.read(keyControllerProvider.notifier);
+      final navigator = Navigator.of(context);
 
-      final activeKey = ref.read(keyControllerProvider).publicKeyHex;
-      if (activeKey == null) {
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(AppRouter.authWrapper, (route) => false);
-        }
-      } else {
-        _loadAccounts();
-      }
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryBlue),
+        ),
+      );
+
+      await keyController.deleteAccount(pubKey);
+
+      navigator.pushNamedAndRemoveUntil(
+        AppRouter.authWrapper,
+        (route) => false,
+      );
     }
   }
 
-  void _showQrModal(String activePubKey) {
+  void showQrModal(String activePubKey) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -268,8 +318,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             delegate: ProfileHeaderDelegate(
               paddingTop: topPadding,
               activeNickname: activeNickname,
-              onEditNickname: () => _showEditNicknameDialog(activeNickname),
-              onShowQr: () => _showQrModal(activePubKey),
+              onEditNickname: () =>
+                  _showEditNicknameDialog(activePubKey, activeNickname),
+              onShowQr: () => showQrModal(activePubKey),
               backgroundColor: AppColors.secondaryBackground,
               scrolledColor: AppColors.secondaryBackground.withValues(
                 alpha: 0.10,
@@ -378,7 +429,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         callback: () {},
                       ),
                       SettingsOption(
-                        title: 'Cover traffic',
+                        title: 'Mask traffic',
                         iconData: FontAwesomeIcons.server,
                         callback: () {},
                       ),
@@ -392,7 +443,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       SettingsOption(
                         title: 'Delete Account',
                         iconData: FontAwesomeIcons.triangleExclamation,
-                        callback: () {},
+                        callback: () => _handleDeleteAccount(activePubKey),
                         hasArrow: false,
                         red: true,
                         hasDivider: false,
