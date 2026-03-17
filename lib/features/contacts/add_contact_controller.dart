@@ -1,6 +1,7 @@
+import 'package:chat/core/providers.dart';
 import 'package:chat/features/chat/chat_controller.dart';
+import 'package:chat/features/key_management/key_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'contacts_repository.dart';
 
 class AddContactState {
   final bool isLoading;
@@ -31,8 +32,18 @@ class AddContactController extends Notifier<AddContactState> {
     state = AddContactState(isLoading: true);
 
     try {
-      final repository = await ref.read(contactsRepositoryProvider.future);
-      await repository.addContact(alias: alias.trim(), publicKey: cleanKey);
+      final repository = ref.read(contactsRepositoryProvider);
+      if (repository == null) throw Exception('Database not ready.');
+
+      final String? myPublicKey = ref.read(keyControllerProvider).publicKeyHex;
+      final defaultSeconds = await ref
+          .read(secureStorageProvider)
+          .getDefaultDisappearingSeconds(myPublicKey!);
+      await repository.addContact(
+        alias: alias.trim(),
+        publicKey: cleanKey,
+        disappearingAfterSeconds: defaultSeconds,
+      );
 
       final newContact = await repository.getContactByPublicKey(publicKey);
       if (newContact != null) {

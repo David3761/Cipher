@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'package:chat/features/chat/chat_repository.dart';
-import 'package:chat/features/contacts/contacts_repository.dart';
+import 'package:chat/core/providers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,8 +21,11 @@ class DisappearingMessagesService {
 
   Future<void> _purge() async {
     try {
-      final contactsRepo = await _ref.read(contactsRepositoryProvider.future);
-      final messagesRepo = await _ref.read(chatRepositoryProvider.future);
+      final contactsRepo = _ref.read(contactsRepositoryProvider);
+      final messagesRepo = _ref.read(chatRepositoryProvider);
+      if (contactsRepo == null || messagesRepo == null) {
+        throw Exception('Database not ready');
+      }
 
       final contacts = await contactsRepo.getContactsWithDisappearing();
 

@@ -28,6 +28,12 @@ class AppDatabase extends _$AppDatabase {
         if (from < 2) {
           await m.createTable(messages);
         }
+        if (from < 3) {
+          await m.addColumn(messages, messages.readAt);
+        }
+        if (from < 4) {
+          await m.addColumn(contacts, contacts.disappearingAfterSeconds);
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');

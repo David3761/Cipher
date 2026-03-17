@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:chat/core/database/tables.dart';
-import 'package:chat/features/chat/chat_repository.dart';
-import 'package:chat/features/contacts/contacts_repository.dart';
-import 'package:chat/features/disappearing_messages/disappearing_service.dart';
+import 'package:chat/core/network/incoming_message_handler.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/key_management/key_controller.dart';
@@ -14,6 +12,7 @@ enum ConnectionState { disconnected, connecting, connected, error }
 
 class ConnectionController extends Notifier<ConnectionState> {
   StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   ConnectionState build() {
@@ -21,6 +20,7 @@ class ConnectionController extends Notifier<ConnectionState> {
 
     ref.onDispose(() {
       _messageSubscription?.cancel();
+      _connectivitySubscription?.cancel();
       wsService.disconnect();
     });
 
@@ -32,16 +32,36 @@ class ConnectionController extends Notifier<ConnectionState> {
       Future.microtask(() async {
         await _connect(activeKey);
         _setupMessageListener();
-        ref.read(disappearingMessagesServiceProvider).start();
+        _setupConnectivityListener(activeKey);
       });
       return ConnectionState.connecting;
     } else {
       Future.microtask(() {
         _messageSubscription?.cancel();
+        _connectivitySubscription?.cancel();
         _disconnect();
       });
       return ConnectionState.disconnected;
     }
+  }
+
+  void _setupConnectivityListener(String pubKey) {
+    _connectivitySubscription?.cancel();
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) async {
+      final hasConnection = results.any((r) => r != ConnectivityResult.none);
+
+      if (hasConnection && state != ConnectionState.connected) {
+        debugPrint('Network restored — reconnecting...');
+        await _connect(pubKey);
+        _setupMessageListener();
+      } else if (!hasConnection) {
+        debugPrint('Network lost');
+        state = ConnectionState.disconnected;
+      }
+    });
   }
 
   Future<void> _connect(String pubKey) async {
@@ -82,8 +102,28 @@ class ConnectionController extends Notifier<ConnectionState> {
           await _processIncomingMessage(payload);
         }
       },
-      onError: (e) => debugPrint('WebSocket Stream Error; $e'),
-      onDone: () => debugPrint('WebSocket Stream Closed'),
+      onError: (e) {
+        debugPrint('WebSocket Stream Error; $e');
+        state = ConnectionState.error;
+      },
+      onDone: () {
+        debugPrint('WebSocket Stream Closed');
+
+        state = ConnectionState.disconnected;
+
+        final activeKey = ref.read(keyControllerProvider).publicKeyHex;
+        if (activeKey != null) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (ref.read(keyControllerProvider).publicKeyHex != null) {
+              Future.microtask(() async {
+                await _connect(activeKey);
+                _setupMessageListener();
+                _setupConnectivityListener(activeKey);
+              });
+            }
+          });
+        }
+      },
     );
   }
 
@@ -94,23 +134,25 @@ class ConnectionController extends Notifier<ConnectionState> {
 
     final keyState = ref.read(keyControllerProvider);
     if (keyState.activeSecretKey == null) return;
-
-    if (senderPubKey == keyState.publicKeyHex) {
-      debugPrint('Dropping echoed package from myself.');
-      return;
-    }
+    if (senderPubKey == keyState.publicKeyHex) return;
 
     try {
-      final contactsRepo = await ref.read(contactsRepositoryProvider.future);
+      final contactsRepo = ref.read(contactsRepositoryProvider);
+      if (contactsRepo == null) return;
+
       var contact = await contactsRepo.getContactByPublicKey(senderPubKey);
 
       //TODO: special section for stranger messaging me
       if (contact == null) {
         final shortKey =
             '${senderPubKey.substring(0, 4)}...${senderPubKey.substring(senderPubKey.length - 4)}';
+        final defaultSeconds = await ref
+            .read(secureStorageProvider)
+            .getDefaultDisappearingSeconds(keyState.publicKeyHex!);
         await contactsRepo.addContact(
           alias: 'Unknown ($shortKey)',
           publicKey: senderPubKey,
+          disappearingAfterSeconds: defaultSeconds,
         );
         contact = await contactsRepo.getContactByPublicKey(senderPubKey);
       }
@@ -124,47 +166,31 @@ class ConnectionController extends Notifier<ConnectionState> {
         theirPublicKeyHex: senderPubKey,
       );
 
+      Map<String, dynamic> data;
       try {
-        final Map<String, dynamic> data = jsonDecode(decryptedPlaintext);
+        data = jsonDecode(decryptedPlaintext) as Map<String, dynamic>;
+      } catch (e) {
+        final chatRepo = ref.read(chatRepositoryProvider);
+        if (chatRepo == null) return;
 
-        if (data['type'] == 'text') {
-          final chatRepo = await ref.read(chatRepositoryProvider.future);
-          await chatRepo.saveMessage(
-            messageId: messageId,
-            contactId: contact.id,
-            content: data['content'],
-            isFromMe: false,
-          );
-        } else if (data['type'] == 'profile_sync') {
-          //TODO: after profile sync, I appear directly on his list screen. there needs to be an "accept request mechanism"
-          //TODO: separate concerns here
-          final newAlias = data['nickname'] as String;
-          await contactsRepo.updateAlias(contact.id, newAlias);
-        } else if (data['type'] == 'messages_read') {
-          final List<dynamic> rawIds = data['message_ids'];
-          final List<String> readMessageIds = rawIds.cast<String>();
-
-          final chatRepo = await ref.read(chatRepositoryProvider.future);
-
-          await chatRepo.updateMessageStatus(
-            readMessageIds,
-            MessageStatus.read,
-            null,
-          );
-
-          debugPrint(
-            'The other user read ${readMessageIds.length} of our messages.',
-          );
-        }
-      } catch (formatException) {
-        final chatRepo = await ref.read(chatRepositoryProvider.future);
         await chatRepo.saveMessage(
           messageId: messageId,
           contactId: contact.id,
           content: decryptedPlaintext,
           isFromMe: false,
         );
+        return;
       }
+
+      await ref
+          .read(incomingMessageHandlerProvider)
+          .handle(
+            messageId: messageId,
+            senderPubKey: senderPubKey,
+            data: data,
+            contactId: contact.id,
+            contact: contact,
+          );
 
       debugPrint(
         'Successfully decrypted and saved incoming message from ${contact.alias}.',

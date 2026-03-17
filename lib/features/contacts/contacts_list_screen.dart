@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:chat/core/network/connection_controller.dart';
+import 'package:chat/core/providers.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/core/widgets/contact_list_item.dart';
 import 'package:chat/features/contacts/new_chat_bottomsheet.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -75,7 +76,8 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
     );
 
     if (confirm == true) {
-      final repository = await ref.read(contactsRepositoryProvider.future);
+      final repository = ref.read(contactsRepositoryProvider);
+      if (repository == null) throw Exception('Database not ready.');
       await repository.deleteContact(contact.id);
     }
   }
@@ -84,103 +86,136 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
   Widget build(BuildContext context) {
     final contactsAsyncValue = ref.watch(contactsStreamProvider);
     final connectionState = ref.watch(connectionControllerProvider);
-    //TODO: update ui on disconnect
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: HeaderDelegate(
-              safeAreaTop: MediaQuery.paddingOf(context).top,
-              backgroundColor: AppColors.background,
-              scrolledColor: AppColors.secondaryBackground.withValues(
-                alpha: 0.10,
-              ),
-              onAddPressed: () => _showNewChatSheet(context),
-              searchBarBuilder: (textOpacity) => SearchBar(
-                controller: _searchbarController,
-                onChanged: _onSearchChanged,
-                constraints: const BoxConstraints(maxHeight: 40, minHeight: 40),
-                padding: WidgetStateProperty.all(
-                  const EdgeInsets.symmetric(horizontal: 10.0),
-                ),
-                shape: WidgetStateProperty.all(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                leading: Icon(
-                  Icons.search_rounded,
-                  size: 24,
-                  color: AppColors.onSecondaryBackground.withValues(
-                    alpha: textOpacity,
-                  ),
-                ),
-                elevation: WidgetStateProperty.all(0),
-                backgroundColor: WidgetStateProperty.all(
-                  AppColors.secondaryBackground,
-                ),
-                hintText: 'Search',
-                hintStyle: WidgetStateProperty.all(
-                  TextStyle(
-                    color: AppColors.onSecondaryBackground.withValues(
-                      alpha: textOpacity,
+      body: Column(
+        children: [
+          if (connectionState == ConnectionState.disconnected ||
+              connectionState == ConnectionState.error ||
+              connectionState == ConnectionState.connecting)
+            Material(
+              color: AppColors.onSecondaryBackground,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                  alignment: Alignment.center,
+                  child: Text(
+                    connectionState == ConnectionState.error ||
+                            connectionState == ConnectionState.disconnected
+                        ? 'You are offline'
+                        : 'Connecting...',
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          contactsAsyncValue.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, stack) => SliverFillRemaining(
-              child: Center(child: Text('Error: $error')),
-            ),
-            data: (contacts) {
-              if (contacts.isEmpty) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text(
-                        'Your vault is empty.\nTap the + button to add a contact.',
-                        textAlign: TextAlign.center,
+          Expanded(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: HeaderDelegate(
+                    safeAreaTop: MediaQuery.paddingOf(context).top,
+                    backgroundColor: AppColors.background,
+                    scrolledColor: AppColors.secondaryBackground.withValues(
+                      alpha: 0.10,
+                    ),
+                    onAddPressed: () => _showNewChatSheet(context),
+                    searchBarBuilder: (textOpacity) => SearchBar(
+                      controller: _searchbarController,
+                      onChanged: _onSearchChanged,
+                      constraints: const BoxConstraints(
+                        maxHeight: 40,
+                        minHeight: 40,
+                      ),
+                      padding: WidgetStateProperty.all(
+                        const EdgeInsets.symmetric(horizontal: 10.0),
+                      ),
+                      shape: WidgetStateProperty.all(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      leading: Icon(
+                        Icons.search_rounded,
+                        size: 24,
+                        color: AppColors.onSecondaryBackground.withValues(
+                          alpha: textOpacity,
+                        ),
+                      ),
+                      elevation: WidgetStateProperty.all(0),
+                      backgroundColor: WidgetStateProperty.all(
+                        AppColors.secondaryBackground,
+                      ),
+                      hintText: 'Search',
+                      hintStyle: WidgetStateProperty.all(
+                        TextStyle(
+                          color: AppColors.onSecondaryBackground.withValues(
+                            alpha: textOpacity,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                );
-              }
+                ),
+                contactsAsyncValue.when(
+                  loading: () => const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (error, stack) => SliverFillRemaining(
+                    child: Center(child: Text('Error: $error')),
+                  ),
+                  data: (contacts) {
+                    if (contacts.isEmpty) {
+                      return const SliverFillRemaining(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: Text(
+                              'Your vault is empty.\nTap the + button to add a contact.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
 
-              final filteredContacts = contacts.where((contact) {
-                return contact.alias.toLowerCase().contains(_searchQuery);
-              }).toList();
+                    final filteredContacts = contacts.where((contact) {
+                      return contact.alias.toLowerCase().contains(_searchQuery);
+                    }).toList();
 
-              if (filteredContacts.isEmpty) {
-                return const SliverFillRemaining(
-                  child: Center(child: Text('No contacts found.')),
-                );
-              }
+                    if (filteredContacts.isEmpty) {
+                      return const SliverFillRemaining(
+                        child: Center(child: Text('No contacts found.')),
+                      );
+                    }
 
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 22.0),
-                sliver: SliverList.builder(
-                  itemCount: filteredContacts.length,
-                  itemBuilder: (context, index) {
-                    return ContactListItem(
-                      contact: filteredContacts[index],
-                      confirmDelete: _confirmDelete,
+                    return SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22.0),
+                      sliver: SliverList.builder(
+                        itemCount: filteredContacts.length,
+                        itemBuilder: (context, index) {
+                          return ContactListItem(
+                            contact: filteredContacts[index],
+                            confirmDelete: _confirmDelete,
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
-              );
-            },
+              ],
+            ),
           ),
         ],
       ),

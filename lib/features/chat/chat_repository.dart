@@ -30,7 +30,7 @@ class MessagesRepository {
   }) async {
     await _db
         .into(_db.messages)
-        .insert(
+        .insertOnConflictUpdate(
           MessagesCompanion.insert(
             messageId: messageId,
             contactId: contactId,
@@ -73,17 +73,19 @@ class MessagesRepository {
         ))
         .go();
   }
-}
 
-final chatRepositoryProvider = FutureProvider<MessagesRepository>((ref) async {
-  final db = await ref.watch(databaseProvider.future);
-  return MessagesRepository(db);
-});
+  Future<Message?> getMessageById(String messageId) async {
+    return (_db.select(
+      _db.messages,
+    )..where((row) => row.messageId.equals(messageId))).getSingleOrNull();
+  }
+}
 
 final chatStreamProvider = StreamProvider.family<List<Message>, int>((
   ref,
   contactId,
-) async* {
-  final repository = await ref.watch(chatRepositoryProvider.future);
-  yield* repository.watchMessagesForContact(contactId);
+) {
+  final repository = ref.watch(chatRepositoryProvider);
+  if (repository == null) return const Stream.empty();
+  return repository.watchMessagesForContact(contactId);
 });

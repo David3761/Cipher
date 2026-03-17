@@ -50,6 +50,8 @@ dependencies:
   flutter_svg: ^2.2.4
   qr_flutter: ^4.1.0
   google_fonts: ^8.0.2
+  connectivity_plus: ^7.0.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +79,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/trash_icon.svg
     - assets/gear_icon.svg
     - assets/right_arrow.svg

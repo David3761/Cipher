@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WebSocketService {
@@ -21,7 +22,10 @@ class WebSocketService {
     final String wsUrl = 'ws://$host:8080/ws?pubkey=$myPublicKey';
 
     try {
-      _socket = await WebSocket.connect(wsUrl);
+      _socket = await WebSocket.connect(
+        wsUrl,
+        headers: {"X-App-Secret": dotenv.env['APP_SECRET'] ?? ''},
+      );
       _socket!.pingInterval = const Duration(seconds: 30);
 
       _streamController = StreamController<Map<String, dynamic>>.broadcast();
@@ -63,7 +67,7 @@ class WebSocketService {
   }) {
     if (_socket == null || _socket!.readyState != WebSocket.open) {
       debugPrint('Cannot send message: WebSocket disconnected.');
-      return;
+      throw Exception('WebSocket is not connected.');
     }
 
     final payload = jsonEncode({

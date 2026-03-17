@@ -22,10 +22,17 @@ class ContactsRepository {
   Future<int> addContact({
     required String alias,
     required String publicKey,
+    int? disappearingAfterSeconds,
   }) async {
     return await _db
         .into(_db.contacts)
-        .insert(ContactsCompanion.insert(alias: alias, publicKey: publicKey));
+        .insert(
+          ContactsCompanion.insert(
+            alias: alias,
+            publicKey: publicKey,
+            disappearingAfterSeconds: Value(disappearingAfterSeconds),
+          ),
+        );
   }
 
   Future<void> deleteContact(int id) async {
@@ -55,22 +62,17 @@ class ContactsRepository {
   }
 }
 
-final contactsRepositoryProvider = FutureProvider<ContactsRepository>((
-  ref,
-) async {
-  final db = await ref.watch(databaseProvider.future);
-  return ContactsRepository(db);
-});
-
-final contactsStreamProvider = StreamProvider<List<Contact>>((ref) async* {
-  final repository = await ref.watch(contactsRepositoryProvider.future);
-  yield* repository.watchAllContacts();
+final contactsStreamProvider = StreamProvider<List<Contact>>((ref) {
+  final repository = ref.watch(contactsRepositoryProvider);
+  if (repository == null) return const Stream.empty();
+  return repository.watchAllContacts();
 });
 
 final contactStreamProvider = StreamProvider.family<Contact, int>((
   ref,
   contactId,
-) async* {
-  final repo = await ref.watch(contactsRepositoryProvider.future);
-  yield* repo.watchContact(contactId);
+) {
+  final repository = ref.watch(contactsRepositoryProvider);
+  if (repository == null) return const Stream.empty();
+  return repository.watchContact(contactId);
 });

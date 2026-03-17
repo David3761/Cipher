@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/core/widgets/settings_option.dart';
 import 'package:chat/core/widgets/titled_settings_section.dart';
+import 'package:chat/features/disappearing_messages/disappearing_options.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -302,6 +303,92 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _showDisappearingPicker(String publicKey) async {
+    final storage = ref.read(secureStorageProvider);
+    final currentSeconds = await storage.getDefaultDisappearingSeconds(
+      publicKey,
+    );
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.secondaryBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.onSecondaryBackground.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Default disappearing messages',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: kDisappearingOptions.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final option = entry.value;
+                  final isSelected = currentSeconds == option.seconds;
+                  final isLast = index == kDisappearingOptions.length - 1;
+
+                  return Column(
+                    children: [
+                      ListTile(
+                        title: Text(option.label),
+                        trailing: isSelected
+                            ? const Icon(
+                                Icons.check,
+                                color: AppColors.primaryBlue,
+                                size: 18,
+                              )
+                            : null,
+                        onTap: () async {
+                          await storage.saveDefaultDisappearingSeconds(
+                            publicKey,
+                            option.seconds,
+                          );
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                      ),
+                      if (!isLast)
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final keyState = ref.watch(keyControllerProvider);
@@ -399,7 +486,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       SettingsOption(
                         title: 'Dissappearing messages',
                         iconData: FontAwesomeIcons.clock,
-                        callback: () {},
+                        callback: () => _showDisappearingPicker(activePubKey),
                       ),
                       SettingsOption(
                         title: 'App lock',

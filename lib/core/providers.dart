@@ -1,4 +1,6 @@
 import 'package:chat/core/network/websocket_service.dart';
+import 'package:chat/features/chat/chat_repository.dart';
+import 'package:chat/features/contacts/contacts_repository.dart';
 import 'package:chat/features/key_management/key_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'security/crypto_service.dart';
@@ -44,4 +46,14 @@ final webSocketServiceProvider = Provider<WebSocketService>((ref) {
   });
 
   return service;
+});
+
+final chatRepositoryProvider = Provider<MessagesRepository?>((ref) {
+  final db = ref.watch(databaseProvider).asData?.value;
+  return db != null ? MessagesRepository(db) : null;
+});
+
+final contactsRepositoryProvider = Provider<ContactsRepository?>((ref) {
+  final db = ref.watch(databaseProvider).asData?.value;
+  return db != null ? ContactsRepository(db) : null;
 });

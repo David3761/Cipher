@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:chat/core/database/app_database.dart';
 import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/providers.dart';
-import 'package:chat/features/chat/chat_repository.dart';
 import 'package:chat/features/key_management/key_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,8 +26,9 @@ class ChatController extends AsyncNotifier<void> {
       final cryptoService = ref.read(cryptoServiceProvider);
       final wsService = ref.read(webSocketServiceProvider);
       final storageService = ref.read(secureStorageProvider);
-      final repository = await ref.read(chatRepositoryProvider.future);
+      final repository = ref.read(chatRepositoryProvider);
 
+      if (repository == null) throw Exception('Database not ready.');
       if (keyState.activeSecretKey == null) {
         throw Exception('Private key not loaded in memory.');
       }
@@ -53,25 +53,119 @@ class ChatController extends AsyncNotifier<void> {
         isFromMe: true,
       );
 
-      wsService.sendMessage(
-        messageId: messageId,
-        senderPubKey: myPubKey,
-        recipientPubKey: contact.publicKey,
-        encryptedBlob: encryptedBase64Blob,
-      );
+      try {
+        wsService.sendMessage(
+          messageId: messageId,
+          senderPubKey: myPubKey,
+          recipientPubKey: contact.publicKey,
+          encryptedBlob: encryptedBase64Blob,
+        );
 
-      wsService.ackStream?.firstWhere((id) => id == messageId).then((id) async {
-        final repository = await ref.read(chatRepositoryProvider.future);
+        wsService.ackStream
+            ?.firstWhere((id) => id == messageId)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () {
+                repository.updateMessageStatus(
+                  [messageId],
+                  MessageStatus.failed,
+                  null,
+                );
+                return '';
+              },
+            )
+            .then((id) async {
+              if (id.isEmpty) return;
+              await repository.updateMessageStatus(
+                [id],
+                MessageStatus.delivered,
+                null,
+              );
+            });
+      } catch (e) {
         await repository.updateMessageStatus(
-          [id],
-          MessageStatus.delivered,
+          [messageId],
+          MessageStatus.failed,
           null,
         );
-      });
+        rethrow;
+      }
 
       state = const AsyncValue.data(null);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  Future<void> retryMessage(String messageId, Contact contact) async {
+    try {
+      final keyState = ref.read(keyControllerProvider);
+      final cryptoService = ref.read(cryptoServiceProvider);
+      final wsService = ref.read(webSocketServiceProvider);
+      final storageService = ref.read(secureStorageProvider);
+      final repository = ref.read(chatRepositoryProvider);
+
+      if (repository == null) throw Exception('Database not ready.');
+      if (keyState.activeSecretKey == null) {
+        throw Exception('Private key not loaded.');
+      }
+      final myPubKey = await storageService.getLastActiveAccount();
+      if (myPubKey == null) throw Exception('Missing public key.');
+
+      final message = await repository.getMessageById(messageId);
+      if (message == null) throw Exception('Message not found.');
+
+      await repository.updateMessageStatus(
+        [messageId],
+        MessageStatus.sending,
+        null,
+      );
+
+      final encryptedBase64Blob = cryptoService.encryptMessage(
+        plainText: jsonEncode({'type': 'text', 'content': message.content}),
+        mySecretKey: keyState.activeSecretKey!,
+        theirPublicKeyHex: contact.publicKey,
+      );
+
+      try {
+        wsService.sendMessage(
+          messageId: messageId,
+          senderPubKey: myPubKey,
+          recipientPubKey: contact.publicKey,
+          encryptedBlob: encryptedBase64Blob,
+        );
+
+        wsService.ackStream
+            ?.firstWhere((id) => id == messageId)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () {
+                repository.updateMessageStatus(
+                  [messageId],
+                  MessageStatus.failed,
+                  null,
+                );
+                return '';
+              },
+            )
+            .then((id) async {
+              if (id.isEmpty) return;
+              await repository.updateMessageStatus(
+                [id],
+                MessageStatus.delivered,
+                null,
+              );
+            });
+      } catch (_) {
+        await repository.updateMessageStatus(
+          [messageId],
+          MessageStatus.failed,
+          null,
+        );
+        rethrow;
+      }
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 
@@ -125,11 +219,14 @@ class ChatController extends AsyncNotifier<void> {
       final cryptoService = ref.read(cryptoServiceProvider);
       final wsService = ref.read(webSocketServiceProvider);
       final storageService = ref.read(secureStorageProvider);
-      final repository = await ref.read(chatRepositoryProvider.future);
+      final repository = ref.read(chatRepositoryProvider);
 
-      if (keyState.activeSecretKey == null) return;
+      if (repository == null) throw Exception('Database not ready.');
+      if (keyState.activeSecretKey == null) {
+        throw Exception('Private key not loaded.');
+      }
       final myPubKey = await storageService.getLastActiveAccount();
-      if (myPubKey == null) return;
+      if (myPubKey == null) throw Exception('Missing public key.');
 
       final payload = jsonEncode({
         'type': 'messages_read',

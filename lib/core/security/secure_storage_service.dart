@@ -18,6 +18,8 @@ class SecureStorageService {
   String _privateKeyId(String publicKey) => '${publicKey}_private_key';
   String _dbKeyId(String publicKey) => '${publicKey}_db_encryption_key';
   String _nicknameId(String publicKey) => '${publicKey}_nickname';
+  String _defaultDisappearingId(String publicKey) =>
+      '${publicKey}_default_disappearing_seconds';
 
   //TODO add the nickname to the account data
   Future<List<String>> getKnownAccounts() async {
@@ -78,10 +80,29 @@ class SecureStorageService {
     return dbKey;
   }
 
+  Future<void> saveDefaultDisappearingSeconds(
+    String publicKey,
+    int? seconds,
+  ) async {
+    final key = _defaultDisappearingId(publicKey);
+    if (seconds == null) {
+      await _storage.delete(key: key);
+    } else {
+      await _storage.write(key: key, value: seconds.toString());
+    }
+  }
+
+  Future<int?> getDefaultDisappearingSeconds(String publicKey) async {
+    final value = await _storage.read(key: _defaultDisappearingId(publicKey));
+    if (value == null) return null;
+    return int.tryParse(value);
+  }
+
   Future<void> wipeAccountData(String publicKey) async {
     await _storage.delete(key: _privateKeyId(publicKey));
     await _storage.delete(key: _dbKeyId(publicKey));
     await _storage.delete(key: _nicknameId(publicKey));
+    await _storage.delete(key: _defaultDisappearingId(publicKey));
 
     final accounts = await getKnownAccounts();
     accounts.remove(publicKey);

@@ -1,5 +1,6 @@
 import 'package:chat/core/app_router.dart';
 import 'package:chat/core/database/app_database.dart';
+import 'package:chat/core/providers.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/features/contacts/contacts_repository.dart';
 import 'package:chat/features/disappearing_messages/disappearing_options.dart';
@@ -80,9 +81,8 @@ class ContactDetailsScreen extends ConsumerWidget {
                             )
                           : null,
                       onTap: () async {
-                        final repo = await ref.read(
-                          contactsRepositoryProvider.future,
-                        );
+                        final repo = ref.read(contactsRepositoryProvider);
+                        if (repo == null) return;
                         await repo.updateDisappearingTimer(
                           contact.id,
                           option.seconds,
@@ -227,7 +227,8 @@ class ContactDetailsScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      final repo = await ref.read(contactsRepositoryProvider.future);
+      final repo = ref.read(contactsRepositoryProvider);
+      if (repo == null) throw Exception('Database not ready');
       await repo.deleteContact(contact.id);
       if (context.mounted) {
         Navigator.popUntil(
