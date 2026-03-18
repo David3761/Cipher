@@ -33,6 +33,11 @@ class IncomingMessageHandler {
       case 'contact_request':
         final isQrInitiated = data['qr_initiated'] == true;
 
+        if (contact.status == ContactStatus.pendingIn &&
+            contact.isQrInitiated) {
+          return;
+        }
+
         await contactsRepo.updateQrInitiated(contact.id, isQrInitiated);
 
         if (isQrInitiated) {

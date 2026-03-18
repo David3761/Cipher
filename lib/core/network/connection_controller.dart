@@ -32,6 +32,7 @@ class ConnectionController extends Notifier<ConnectionState> {
 
     if (activeKey != null) {
       Future.microtask(() async {
+        await _waitForRepository(activeKey);
         await _connect(activeKey);
         _setupMessageListener();
         _setupConnectivityListener(activeKey);
@@ -47,6 +48,18 @@ class ConnectionController extends Notifier<ConnectionState> {
     }
   }
 
+  Future<void> _waitForRepository(String publicKey) async {
+    const maxWait = Duration(seconds: 5);
+    const interval = Duration(milliseconds: 100);
+    final deadline = DateTime.now().add(maxWait);
+
+    while (DateTime.now().isBefore(deadline)) {
+      final repo = ref.read(contactsRepositoryProvider);
+      if (repo != null) return;
+      await Future.delayed(interval);
+    }
+  }
+
   void _setupConnectivityListener(String pubKey) {
     _connectivitySubscription?.cancel();
 
@@ -56,11 +69,10 @@ class ConnectionController extends Notifier<ConnectionState> {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
 
       if (hasConnection && state != ConnectionState.connected) {
-        debugPrint('Network restored — reconnecting...');
+        await _waitForRepository(pubKey);
         await _connect(pubKey);
         _setupMessageListener();
       } else if (!hasConnection) {
-        debugPrint('Network lost');
         state = ConnectionState.disconnected;
       }
     });
@@ -73,7 +85,6 @@ class ConnectionController extends Notifier<ConnectionState> {
 
     try {
       await wsService.connect(pubKey);
-      debugPrint("Successfully conected the frontend");
       state = ConnectionState.connected;
     } catch (e) {
       state = ConnectionState.error;
@@ -118,6 +129,7 @@ class ConnectionController extends Notifier<ConnectionState> {
           Future.delayed(const Duration(seconds: 3), () {
             if (ref.read(keyControllerProvider).publicKeyHex != null) {
               Future.microtask(() async {
+                await _waitForRepository(activeKey);
                 await _connect(activeKey);
                 _setupMessageListener();
                 _setupConnectivityListener(activeKey);

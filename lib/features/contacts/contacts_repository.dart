@@ -68,23 +68,11 @@ class ContactsRepository {
     )..where((row) => row.disappearingAfterSeconds.isNotNull())).get();
   }
 
-  // Future<List<Contact>> getPendingInContacts() async {
-  //   return (_db.select(
-  //     _db.contacts,
-  //   )..where((row) => row.status.equals(ContactStatus.pendingIn.index))).get();
-  // }
-
   Stream<List<Contact>> watchPendingInContacts() {
     return (_db.select(_db.contacts)
           ..where((row) => row.status.equals(ContactStatus.pendingIn.index)))
         .watch();
   }
-
-  // Future<List<Contact>> getBlockedContacts() async {
-  //   return (_db.select(
-  //     _db.contacts,
-  //   )..where((row) => row.status.equals(ContactStatus.blocked.index))).get();
-  // }
 
   Stream<List<Contact>> watchBlockedContacts() {
     return (_db.select(
@@ -100,15 +88,6 @@ class ContactsRepository {
   Future<void> updateQrInitiated(int contactId, bool value) async {
     await (_db.update(_db.contacts)..where((row) => row.id.equals(contactId)))
         .write(ContactsCompanion(isQrInitiated: Value(value)));
-  }
-
-  Future<List<Contact>> getQrInitiatedPendingContacts() async {
-    return (_db.select(_db.contacts)..where(
-          (row) =>
-              row.status.equals(ContactStatus.pendingIn.index) &
-              row.isQrInitiated.equals(true),
-        ))
-        .get();
   }
 }
 

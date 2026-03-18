@@ -9,6 +9,7 @@ class WebSocketService {
   WebSocket? _socket;
   StreamController<Map<String, dynamic>>? _streamController;
   Stream<Map<String, dynamic>>? _broadcastStream;
+  final List<Map<String, dynamic>> _messageQueue = [];
 
   Stream<Map<String, dynamic>>? get incomingMessages => _broadcastStream;
 
@@ -17,7 +18,6 @@ class WebSocketService {
       .map((msg) => msg['message_id'] as String);
 
   Future<void> connect(String myPublicKey) async {
-    //TODO: real server
     final String host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
     final String wsUrl = 'ws://$host:8080/ws?pubkey=$myPublicKey';
 
@@ -28,14 +28,25 @@ class WebSocketService {
       );
       _socket!.pingInterval = const Duration(seconds: 30);
 
-      _streamController = StreamController<Map<String, dynamic>>.broadcast();
+      _streamController = StreamController<Map<String, dynamic>>.broadcast(
+        onListen: () {
+          for (final msg in _messageQueue) {
+            _streamController?.add(msg);
+          }
+          _messageQueue.clear();
+        },
+      );
 
       _socket!.listen(
         (event) {
           if (event is String) {
             try {
               final decoded = jsonDecode(event) as Map<String, dynamic>;
-              _streamController?.add(decoded);
+              if (_streamController!.hasListener) {
+                _streamController?.add(decoded);
+              } else {
+                _messageQueue.add(decoded);
+              }
             } catch (e) {
               debugPrint('Failed to decode message: $e');
             }
@@ -103,6 +114,7 @@ class WebSocketService {
     _streamController?.close();
     _streamController = null;
     _broadcastStream = null;
+    _messageQueue.clear();
     debugPrint('WebSocket Disconnected');
   }
 }

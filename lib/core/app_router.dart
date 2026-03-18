@@ -16,6 +16,7 @@ import '../features/contacts/contacts_list_screen.dart';
 import '../features/key_management/key_screen.dart';
 
 class AppRouter {
+  static final navigatorKey = GlobalKey<NavigatorState>();
   static const String authWrapper = '/';
   static const String mainScreen = '/main_screen';
   static const String onboarding = '/onboarding';

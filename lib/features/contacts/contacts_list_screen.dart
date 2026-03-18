@@ -8,8 +8,6 @@ import 'package:chat/core/providers.dart';
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/core/widgets/contact_list_item.dart';
 import 'package:chat/core/widgets/qr_scanner_sheet.dart';
-import 'package:chat/features/contacts/contact_request_controller.dart';
-import 'package:chat/features/contacts/contact_request_modal.dart';
 import 'package:chat/features/contacts/new_chat_bottomsheet.dart';
 import 'package:chat/features/key_management/key_controller.dart';
 import 'package:flutter/material.dart' hide ConnectionState;
@@ -31,27 +29,6 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
   final TextEditingController _searchbarController = TextEditingController();
   String _searchQuery = '';
   Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final pendingRequest = ref.read(contactRequestControllerProvider);
-      if (pendingRequest != null) {
-        _showRequestModal(pendingRequest);
-        return;
-      }
-
-      final contactsRepo = ref.read(contactsRepositoryProvider);
-      if (contactsRepo == null) return;
-
-      final qrInitiatedPendingContacts = await contactsRepo
-          .getQrInitiatedPendingContacts();
-      if (qrInitiatedPendingContacts.isNotEmpty && mounted) {
-        _showRequestModal(qrInitiatedPendingContacts.first);
-      }
-    });
-  }
 
   @override
   void dispose() {
@@ -183,24 +160,10 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
     );
   }
 
-  void _showRequestModal(Contact contact) {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ContactRequestModal(contact: contact),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final contactsAsyncValue = ref.watch(contactsStreamProvider);
     final connectionState = ref.watch(connectionControllerProvider);
-    ref.listen(contactRequestControllerProvider, (prev, contact) {
-      if (contact != null && prev == null) {
-        _showRequestModal(contact);
-      }
-    });
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
