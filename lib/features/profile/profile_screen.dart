@@ -2,12 +2,14 @@ import 'dart:ui';
 
 import 'package:chat/core/theme/theme.dart';
 import 'package:chat/features/disappearing_messages/show_disappearing_picker.dart';
-import 'package:chat/mask_traffic/show_traffic_mask_info.dart';
+import 'package:chat/features/mask_traffic/show_traffic_mask_info.dart';
 import 'package:chat/features/profile/edit_nickname_dialog.dart';
 import 'package:chat/core/widgets/settings_option.dart';
 import 'package:chat/core/widgets/titled_settings_section.dart';
 import 'package:chat/features/profile/show_qr_modal.dart';
-import 'package:chat/mask_traffic/mask_traffic_provider.dart';
+import 'package:chat/features/mask_traffic/mask_traffic_provider.dart';
+import 'package:chat/features/tor/tor_info.dart';
+import 'package:chat/features/tor/tor_toggle_notifier.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -253,6 +255,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       SettingsOption(
+                        title: 'App lock',
+                        customIcon: SvgPicture.asset(
+                          'assets/lock.svg',
+                          width: 22,
+                          height: 22,
+                          colorFilter: ColorFilter.mode(
+                            Theme.of(context).iconTheme.color!,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        callback: () {},
+                      ),
+                      //TODO: prevent ss
+                      SettingsOption(
                         title: 'Mask traffic',
                         iconData: FontAwesomeIcons.server,
                         callback: () {},
@@ -283,20 +299,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                       ),
                       SettingsOption(
-                        title: 'App lock',
-                        customIcon: SvgPicture.asset(
-                          'assets/lock.svg',
-                          width: 22,
-                          height: 22,
-                          colorFilter: ColorFilter.mode(
-                            Theme.of(context).iconTheme.color!,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                        callback: () {},
-                      ),
-                      //TODO: prevent ss
-                      SettingsOption(
                         title: 'Route through TOR',
                         customIcon: SvgPicture.asset(
                           'assets/tor.svg',
@@ -308,6 +310,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         callback: () {},
+                        hasArrow: false,
+                        onInfoPressed: () => showTorInfo(context),
+                        trailing: ref
+                            .watch(torToggleProvider)
+                            .maybeWhen(
+                              data: (enabled) => Transform.scale(
+                                scale: 0.75,
+                                child: Switch(
+                                  value: enabled,
+                                  onChanged: (_) => ref
+                                      .read(torToggleProvider.notifier)
+                                      .toggle(context),
+                                  activeThumbColor: AppColors.primaryBlue,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              orElse: () => const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
                       ),
                       SettingsOption(
                         title: 'Log Out',

@@ -110,6 +110,18 @@ class SecureStorageService {
     return value == 'true';
   }
 
+  Future<void> setTorEnabled(String publicKey, bool enabled) async {
+    await _storage.write(
+      key: '${publicKey}_tor_enabled',
+      value: enabled.toString(),
+    );
+  }
+
+  Future<bool> getTorEnabled(String publicKey) async {
+    final value = await _storage.read(key: '${publicKey}_tor_enabled');
+    return value == 'true';
+  }
+
   Future<void> wipeAccountData(String publicKey) async {
     await _storage.delete(key: _privateKeyId(publicKey));
     await _storage.delete(key: _dbKeyId(publicKey));

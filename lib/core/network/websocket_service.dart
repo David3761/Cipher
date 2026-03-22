@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:socks5_proxy/socks_client.dart';
 
 class WebSocketService {
   WebSocket? _socket;
@@ -20,57 +22,90 @@ class WebSocketService {
   bool get isConnected =>
       _socket != null && _socket!.readyState == WebSocket.open;
 
-  Future<void> connect(String myPublicKey) async {
+  Future<void> connect(String myPublicKey, {int? torProxyPort}) async {
     final String host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
     final String wsUrl = 'ws://$host:8080/ws?pubkey=$myPublicKey';
 
     try {
-      _socket = await WebSocket.connect(
-        wsUrl,
-        headers: {"X-App-Secret": dotenv.env['APP_SECRET'] ?? ''},
-      );
+      if (torProxyPort != null) {
+        _socket = await _connectViaTor(wsUrl, torProxyPort);
+      } else {
+        _socket = await WebSocket.connect(
+          wsUrl,
+          headers: {"X-App-Secret": dotenv.env['APP_SECRET'] ?? ''},
+        );
+      }
+
       _socket!.pingInterval = const Duration(seconds: 30);
-
-      _streamController = StreamController<Map<String, dynamic>>.broadcast(
-        onListen: () {
-          for (final msg in _messageQueue) {
-            _streamController?.add(msg);
-          }
-          _messageQueue.clear();
-        },
-      );
-
-      _socket!.listen(
-        (event) {
-          if (event is String) {
-            try {
-              final decoded = jsonDecode(event) as Map<String, dynamic>;
-              if (_streamController!.hasListener) {
-                _streamController?.add(decoded);
-              } else {
-                _messageQueue.add(decoded);
-              }
-            } catch (e) {
-              debugPrint('Failed to decode message: $e');
-            }
-          }
-        },
-        onError: (e) {
-          debugPrint('WebSocket error: $e');
-          _streamController?.addError(e);
-        },
-        onDone: () {
-          debugPrint('WebSocket Disconnected');
-          _streamController?.close();
-        },
-      );
-
-      _broadcastStream = _streamController!.stream;
-      debugPrint('WebSocket Connected: $wsUrl');
+      _setupStream();
+      debugPrint('WebSocket Connected: $wsUrl (tor: ${torProxyPort != null})');
     } catch (e) {
       debugPrint('WebSocket Connection Failed: $e');
-      throw Exception('Failed to connect: $e');
+      throw Exception('Failed to conncet: $e');
     }
+  }
+
+  Future<WebSocket> _connectViaTor(String wsUrl, int proxyPort) async {
+    final uri = Uri.parse(wsUrl);
+    final client = HttpClient();
+
+    SocksTCPClient.assignToHttpClient(client, [
+      ProxySettings(InternetAddress.loopbackIPv4, proxyPort, password: null),
+    ]);
+
+    final request = await client.openUrl('GET', uri);
+    request.headers.set('X-App-Secret', dotenv.env['APP_SECRET'] ?? '');
+    request.headers.set('Connection', 'Upgrade');
+    request.headers.set('Upgrade', 'websocket');
+    request.headers.set('Sec-WebSocket-Version', '13');
+    final key = base64Encode(
+      List<int>.generate(16, (_) => Random.secure().nextInt(256)),
+    );
+    request.headers.set('Sec-WebSocket-Key', key);
+
+    final response = await request.close();
+    return WebSocket.fromUpgradedSocket(
+      await response.detachSocket(),
+      serverSide: false,
+    );
+  }
+
+  void _setupStream() {
+    _streamController = StreamController<Map<String, dynamic>>.broadcast(
+      onListen: () {
+        for (final msg in _messageQueue) {
+          _streamController?.add(msg);
+        }
+        _messageQueue.clear();
+      },
+    );
+
+    _socket!.listen(
+      (event) {
+        if (event is String) {
+          try {
+            final decoded = jsonDecode(event) as Map<String, dynamic>;
+            if (_streamController!.hasListener) {
+              _streamController?.add(decoded);
+            } else {
+              _messageQueue.add(decoded);
+            }
+          } catch (e) {
+            debugPrint('Failed to decode message: $e');
+          }
+        }
+      },
+      onError: (e) {
+        debugPrint('WebSocket error: $e');
+        _streamController?.addError(e);
+      },
+      onDone: () {
+        debugPrint('WebSocket Disconnected');
+        _streamController?.close();
+      },
+    );
+
+    _broadcastStream = _streamController!.stream;
   }
 
   int sendMessage({

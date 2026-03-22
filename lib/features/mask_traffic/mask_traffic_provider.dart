@@ -1,6 +1,6 @@
 import 'package:chat/core/providers.dart';
 import 'package:chat/features/key_management/key_controller.dart';
-import 'package:chat/mask_traffic/traffic_masking_service.dart';
+import 'package:chat/features/mask_traffic/traffic_masking_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

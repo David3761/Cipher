@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:chat/core/database/app_database.dart';
 import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/network/incoming_message_handler.dart';
+import 'package:chat/features/tor/tor_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,11 +81,13 @@ class ConnectionController extends Notifier<ConnectionState> {
 
   Future<void> _connect(String pubKey) async {
     final wsService = ref.read(webSocketServiceProvider);
+    final torNotifier = ref.read(torProvider.notifier);
 
     state = ConnectionState.connecting;
 
     try {
-      await wsService.connect(pubKey);
+      final torPort = torNotifier.isReady ? torNotifier.port : null;
+      await wsService.connect(pubKey, torProxyPort: torPort);
       state = ConnectionState.connected;
     } catch (e) {
       state = ConnectionState.error;

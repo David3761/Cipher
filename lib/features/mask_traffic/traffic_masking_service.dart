@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:chat/core/network/websocket_service.dart';
-import 'package:chat/mask_traffic/message_size_tracker.dart';
+import 'package:chat/features/mask_traffic/message_size_tracker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

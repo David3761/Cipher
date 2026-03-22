@@ -7,7 +7,9 @@ import 'package:chat/features/contacts/contact_request_controller.dart';
 import 'package:chat/features/contacts/contact_request_modal.dart';
 import 'package:chat/features/disappearing_messages/disappearing_service.dart';
 import 'package:chat/features/key_management/key_controller.dart';
-import 'package:chat/mask_traffic/traffic_masking_service.dart';
+import 'package:chat/features/mask_traffic/traffic_masking_service.dart';
+import 'package:chat/features/tor/tor_bootstrapping_dialog.dart';
+import 'package:chat/features/tor/tor_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +75,24 @@ class _AppEntryState extends ConsumerState<AppEntry> {
     ref.listen(contactRequestControllerProvider, (previous, contact) {
       if (contact != null && previous == null) {
         _showRequestModal(context, contact);
+      }
+    });
+
+    ref.listen(torProvider, (previous, next) {
+      final status = next.value;
+      final prevStatus = previous?.value;
+
+      if (status == TorStatus.bootstrapping &&
+          prevStatus != TorStatus.bootstrapping) {
+        showDialog(
+          context: AppRouter.navigatorKey.currentContext!,
+          barrierDismissible: false,
+          builder: (_) => const TorBootstrappingDialog(),
+        );
+      } else if (status != TorStatus.bootstrapping &&
+          prevStatus == TorStatus.bootstrapping) {
+        final ctx = AppRouter.navigatorKey.currentContext;
+        if (ctx != null) Navigator.of(ctx, rootNavigator: true).pop();
       }
     });
 

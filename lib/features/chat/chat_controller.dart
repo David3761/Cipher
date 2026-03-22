@@ -4,7 +4,7 @@ import 'package:chat/core/database/app_database.dart';
 import 'package:chat/core/database/tables.dart';
 import 'package:chat/core/providers.dart';
 import 'package:chat/features/key_management/key_controller.dart';
-import 'package:chat/mask_traffic/message_size_tracker.dart';
+import 'package:chat/features/mask_traffic/message_size_tracker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
