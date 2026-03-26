@@ -146,6 +146,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final activeNickname = keyState.nickname ?? 'My Profile';
     final topPadding = MediaQuery.of(context).padding.top;
 
+    final minScrollHeight =
+        MediaQuery.of(context).size.height - (kToolbarHeight + topPadding);
+
     return Scaffold(
       backgroundColor: AppColors.secondaryBackground,
       body: CustomScrollView(
@@ -173,220 +176,228 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 22.0),
             sliver: SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  TitledSettingsSection(
-                    title: "Switch profile",
-                    options: !_isLoadingAccounts && _accountNicknames.length > 1
-                        ? [
-                            ..._accountNicknames.entries
-                                .where((entry) => entry.key != activePubKey)
-                                .map((entry) {
-                                  final pubKey = entry.key;
-                                  final nickname = entry.value;
-                                  return ListTile(
-                                    key: ValueKey(pubKey),
-                                    leading: const CircleAvatar(
-                                      backgroundColor: Colors.grey,
-                                      child: Icon(
-                                        Icons.person,
-                                        color: Colors.white,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minScrollHeight),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    TitledSettingsSection(
+                      title: "Switch profile",
+                      options:
+                          !_isLoadingAccounts && _accountNicknames.length > 1
+                          ? [
+                              ..._accountNicknames.entries
+                                  .where((entry) => entry.key != activePubKey)
+                                  .map((entry) {
+                                    final pubKey = entry.key;
+                                    final nickname = entry.value;
+                                    return ListTile(
+                                      key: ValueKey(pubKey),
+                                      leading: const CircleAvatar(
+                                        backgroundColor: Colors.grey,
+                                        child: Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                    title: Text(
-                                      nickname,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                      title: Text(
+                                        nickname,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      '${pubKey.substring(0, 8)}...${pubKey.substring(pubKey.length - 8)}',
-                                      style: const TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
+                                      subtitle: Text(
+                                        '${pubKey.substring(0, 8)}...${pubKey.substring(pubKey.length - 8)}',
+                                        style: const TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                        ),
                                       ),
+                                      onTap: () => _handleSwitchAccount(pubKey),
+                                    );
+                                  }),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: ListTile(
+                                  leading: const Icon(Icons.add),
+                                  title: Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: Text(
+                                      'Add Profile',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium!
+                                          .copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                     ),
-                                    onTap: () => _handleSwitchAccount(pubKey),
-                                  );
-                                }),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              child: ListTile(
-                                leading: const Icon(Icons.add),
-                                title: Padding(
-                                  padding: const EdgeInsets.only(left: 8.0),
-                                  child: Text(
-                                    'Add Profile',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium!
-                                        .copyWith(fontWeight: FontWeight.bold),
                                   ),
+                                  onTap: _handleLogout,
                                 ),
+                              ),
+                            ]
+                          : [
+                              ListTile(
+                                leading: const Icon(Icons.add),
+                                title: const Text('Add Profile'),
                                 onTap: _handleLogout,
                               ),
-                            ),
-                          ]
-                        : [
-                            ListTile(
-                              leading: const Icon(Icons.add),
-                              title: const Text('Add Profile'),
-                              onTap: _handleLogout,
-                            ),
-                          ],
-                  ),
-                  TitledSettingsSection(
-                    title: 'Security',
-                    options: [
-                      SettingsOption(
-                        title: 'Dissappearing messages',
-                        iconData: FontAwesomeIcons.clock,
-                        callback: () => showDisappearingPicker(
-                          context,
-                          ref,
-                          mounted,
-                          activePubKey,
-                        ),
-                      ),
-                      SettingsOption(
-                        title: 'Blocked contacts',
-                        iconData: FontAwesomeIcons.ban,
-                        callback: () => Navigator.pushNamed(
-                          context,
-                          AppRouter.blockedContacts,
-                        ),
-                      ),
-                      SettingsOption(
-                        title: 'App lock',
-                        customIcon: SvgPicture.asset(
-                          'assets/lock.svg',
-                          width: 22,
-                          height: 22,
-                          colorFilter: ColorFilter.mode(
-                            Theme.of(context).iconTheme.color!,
-                            BlendMode.srcIn,
+                            ],
+                    ),
+                    TitledSettingsSection(
+                      title: 'Security',
+                      options: [
+                        SettingsOption(
+                          title: 'Dissappearing messages',
+                          iconData: FontAwesomeIcons.clock,
+                          callback: () => showDisappearingPicker(
+                            context,
+                            ref,
+                            mounted,
+                            activePubKey,
                           ),
+                          hasArrow: true,
                         ),
-                        callback: () {
-                          if (ref.read(appLockProvider).value?.isEnabled ==
-                              true) {
-                            showTimeoutPicker(context, ref);
-                          }
-                        },
-                        hasArrow: false,
-                        onInfoPressed: () => showAppLockInfo(context),
-                        trailing: ref
-                            .watch(appLockProvider)
-                            .maybeWhen(
-                              data: (lockState) => Transform.scale(
-                                scale: 0.75,
-                                child: Switch(
-                                  value: lockState.isEnabled,
-                                  onChanged: (_) => ref
-                                      .read(appLockProvider.notifier)
-                                      .toggleEnabled(),
-                                  activeThumbColor: AppColors.primaryBlue,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                              orElse: () => const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                      ),
-                      //TODO: prevent ss
-                      SettingsOption(
-                        title: 'Mask traffic',
-                        iconData: FontAwesomeIcons.server,
-                        callback: () {},
-                        hasArrow: false,
-                        onInfoPressed: () => showMaskTrafficInfo(context),
-                        trailing: ref
-                            .watch(maskTrafficProvider)
-                            .maybeWhen(
-                              data: (enabled) => Transform.scale(
-                                scale: 0.75,
-                                child: Switch(
-                                  value: enabled,
-                                  onChanged: (_) => ref
-                                      .read(maskTrafficProvider.notifier)
-                                      .toggle(),
-                                  activeThumbColor: AppColors.primaryBlue,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                              orElse: () => const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                      ),
-                      SettingsOption(
-                        title: 'Route through TOR',
-                        customIcon: SvgPicture.asset(
-                          'assets/tor.svg',
-                          width: 22,
-                          height: 22,
-                          colorFilter: ColorFilter.mode(
-                            Theme.of(context).iconTheme.color!,
-                            BlendMode.srcIn,
+                        SettingsOption(
+                          title: 'Blocked contacts',
+                          iconData: FontAwesomeIcons.ban,
+                          callback: () => Navigator.pushNamed(
+                            context,
+                            AppRouter.blockedContacts,
                           ),
+                          hasArrow: true,
                         ),
-                        callback: () {},
-                        hasArrow: false,
-                        onInfoPressed: () => showTorInfo(context),
-                        trailing: ref
-                            .watch(torToggleProvider)
-                            .maybeWhen(
-                              data: (enabled) => Transform.scale(
-                                scale: 0.75,
-                                child: Switch(
-                                  value: enabled,
-                                  onChanged: (_) => ref
-                                      .read(torToggleProvider.notifier)
-                                      .toggle(context),
-                                  activeThumbColor: AppColors.primaryBlue,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                              orElse: () => const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
+                        SettingsOption(
+                          title: 'App lock',
+                          customIcon: SvgPicture.asset(
+                            'assets/lock.svg',
+                            width: 22,
+                            height: 22,
+                            colorFilter: ColorFilter.mode(
+                              Theme.of(context).iconTheme.color!,
+                              BlendMode.srcIn,
                             ),
-                      ),
-                      SettingsOption(
-                        title: 'Log Out',
-                        iconData: FontAwesomeIcons.arrowRightFromBracket,
-                        callback: _handleLogout,
-                        hasArrow: false,
-                        red: true,
-                      ),
-                      SettingsOption(
-                        title: 'Delete Account',
-                        iconData: FontAwesomeIcons.triangleExclamation,
-                        callback: () => _handleDeleteAccount(activePubKey),
-                        hasArrow: false,
-                        red: true,
-                        hasDivider: false,
-                      ),
-                    ],
-                  ),
-                ],
+                          ),
+                          callback: () {
+                            if (ref.read(appLockProvider).value?.isEnabled ==
+                                true) {
+                              showTimeoutPicker(context, ref);
+                            }
+                          },
+                          hasArrow: false,
+                          onInfoPressed: () => showAppLockInfo(context),
+                          trailing: ref
+                              .watch(appLockProvider)
+                              .maybeWhen(
+                                data: (lockState) => Transform.scale(
+                                  scale: 0.75,
+                                  child: Switch(
+                                    value: lockState.isEnabled,
+                                    onChanged: (_) => ref
+                                        .read(appLockProvider.notifier)
+                                        .toggleEnabled(),
+                                    activeThumbColor: AppColors.primaryBlue,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                                orElse: () => const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        //TODO: prevent ss
+                        SettingsOption(
+                          title: 'Mask traffic',
+                          iconData: FontAwesomeIcons.server,
+                          callback: () {},
+                          hasArrow: false,
+                          onInfoPressed: () => showMaskTrafficInfo(context),
+                          trailing: ref
+                              .watch(maskTrafficProvider)
+                              .maybeWhen(
+                                data: (enabled) => Transform.scale(
+                                  scale: 0.75,
+                                  child: Switch(
+                                    value: enabled,
+                                    onChanged: (_) => ref
+                                        .read(maskTrafficProvider.notifier)
+                                        .toggle(),
+                                    activeThumbColor: AppColors.primaryBlue,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                                orElse: () => const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        SettingsOption(
+                          title: 'Route through TOR',
+                          customIcon: SvgPicture.asset(
+                            'assets/tor.svg',
+                            width: 22,
+                            height: 22,
+                            colorFilter: ColorFilter.mode(
+                              Theme.of(context).iconTheme.color!,
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                          callback: () {},
+                          hasArrow: false,
+                          onInfoPressed: () => showTorInfo(context),
+                          trailing: ref
+                              .watch(torToggleProvider)
+                              .maybeWhen(
+                                data: (enabled) => Transform.scale(
+                                  scale: 0.75,
+                                  child: Switch(
+                                    value: enabled,
+                                    onChanged: (_) => ref
+                                        .read(torToggleProvider.notifier)
+                                        .toggle(context),
+                                    activeThumbColor: AppColors.primaryBlue,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                                orElse: () => const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        SettingsOption(
+                          title: 'Log Out',
+                          iconData: FontAwesomeIcons.arrowRightFromBracket,
+                          callback: _handleLogout,
+                          hasArrow: false,
+                          red: true,
+                        ),
+                        SettingsOption(
+                          title: 'Delete Account',
+                          iconData: FontAwesomeIcons.triangleExclamation,
+                          callback: () => _handleDeleteAccount(activePubKey),
+                          hasArrow: false,
+                          red: true,
+                          hasDivider: false,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

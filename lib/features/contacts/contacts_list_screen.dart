@@ -121,60 +121,6 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
     }
   }
 
-  void _showEllipsisMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: const FaIcon(FontAwesomeIcons.userClock),
-                title: const Text('Contact Requests'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, AppRouter.contactRequests);
-                },
-              ),
-              ListTile(
-                leading: const FaIcon(FontAwesomeIcons.ban),
-                title: const Text('Blocked Contacts'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, AppRouter.blockedContacts);
-                },
-              ),
-              ListTile(
-                leading: const FaIcon(FontAwesomeIcons.userGroup),
-                title: const Text('New Group'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, AppRouter.createGroup);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showQrScanner(BuildContext context) {
     Navigator.pushNamed(context, AppRouter.qrScanner, arguments: _handleQrScan);
   }
@@ -292,7 +238,6 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
                     ),
                     onAddPressed: () => _showNewChatSheet(context),
                     onScanPressed: () => _showQrScanner(context),
-                    onEllipsisPressed: () => _showEllipsisMenu(context),
                     searchBarBuilder: (textOpacity) => SearchBar(
                       controller: _searchbarController,
                       onChanged: _onSearchChanged,
@@ -330,16 +275,15 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
                     ),
                   ),
                 ),
-                // Groups
                 groupsAsyncValue.maybeWhen(
                   data: (groups) {
                     final filtered = groups
                         .where(
                           (g) =>
                               _searchQuery.isEmpty ||
-                              (g.name ?? '')
-                                  .toLowerCase()
-                                  .contains(_searchQuery),
+                              (g.name ?? '').toLowerCase().contains(
+                                _searchQuery,
+                              ),
                         )
                         .toList();
                     if (filtered.isEmpty) {
@@ -359,8 +303,6 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
                   orElse: () =>
                       const SliverToBoxAdapter(child: SizedBox.shrink()),
                 ),
-
-                // Contacts
                 contactsAsyncValue.when(
                   loading: () => const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
@@ -375,8 +317,7 @@ class _ContactsListScreenState extends ConsumerState<ContactsListScreen> {
                         )
                         .toList();
 
-                    final groups =
-                        groupsAsyncValue.asData?.value ?? const [];
+                    final groups = groupsAsyncValue.asData?.value ?? const [];
                     final bothEmpty =
                         filteredContacts.isEmpty && groups.isEmpty;
 
@@ -426,7 +367,6 @@ class HeaderDelegate extends SliverPersistentHeaderDelegate {
   final Color scrolledColor;
   final VoidCallback onAddPressed;
   final VoidCallback onScanPressed;
-  final VoidCallback onEllipsisPressed;
 
   HeaderDelegate({
     required this.safeAreaTop,
@@ -435,7 +375,6 @@ class HeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.scrolledColor,
     required this.onAddPressed,
     required this.onScanPressed,
-    required this.onEllipsisPressed,
   });
 
   @override
@@ -529,13 +468,81 @@ class HeaderDelegate extends SliverPersistentHeaderDelegate {
                           color: AppColors.secondaryBackground,
                           shape: BoxShape.circle,
                         ),
-                        child: IconButton(
-                          onPressed: onEllipsisPressed,
+                        child: PopupMenuButton<int>(
                           padding: EdgeInsets.zero,
                           icon: const FaIcon(
                             FontAwesomeIcons.ellipsis,
                             size: 16,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          color: Theme.of(context).cardColor,
+                          elevation: 4,
+                          offset: const Offset(0, 40),
+                          onSelected: (value) {
+                            if (value == 0) {
+                              Navigator.pushNamed(
+                                context,
+                                AppRouter.contactRequests,
+                              );
+                            } else if (value == 1) {
+                              Navigator.pushNamed(
+                                context,
+                                AppRouter.blockedContacts,
+                              );
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem<int>(
+                              value: 0,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    child: FaIcon(
+                                      FontAwesomeIcons.userClock,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Contact Requests',
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w400,
+                                          fontSize: 15,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<int>(
+                              value: 1,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    child: FaIcon(
+                                      FontAwesomeIcons.ban,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Blocked Contacts',
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w400,
+                                          fontSize: 15,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

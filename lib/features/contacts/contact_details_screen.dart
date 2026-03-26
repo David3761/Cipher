@@ -21,6 +21,10 @@ class ContactDetailsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.secondaryBackground,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Contact info'),
         backgroundColor: AppColors.secondaryBackground,
       ),

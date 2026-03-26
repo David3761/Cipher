@@ -7,6 +7,7 @@ import 'package:chat/features/groups/group_repository.dart';
 import 'package:chat/features/key_management/key_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
@@ -110,6 +111,10 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('New Group'),
         actions: [
           contactsAsync.maybeWhen(

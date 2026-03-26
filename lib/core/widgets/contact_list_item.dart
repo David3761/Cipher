@@ -116,9 +116,14 @@ class ContactListItem extends ConsumerWidget {
 
                                       final latestMessage = messages.first;
 
-                                      return Text(
-                                        formatDateTimeContact(
-                                          latestMessage.timestamp,
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 8.0,
+                                        ),
+                                        child: Text(
+                                          formatDateTimeContact(
+                                            latestMessage.timestamp,
+                                          ),
                                         ),
                                       );
                                     },
@@ -161,24 +166,31 @@ class ContactListItem extends ConsumerWidget {
                                         return const SizedBox.shrink();
                                       }
 
-                                      return Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primaryBlue,
-                                          shape: BoxShape.circle,
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 8.0,
                                         ),
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          unreadCount > 9
-                                              ? '+9'
-                                              : unreadCount.toString(),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.clip,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall!
-                                              .copyWith(color: AppColors.white),
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryBlue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            unreadCount > 9
+                                                ? '+9'
+                                                : unreadCount.toString(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.clip,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall!
+                                                .copyWith(
+                                                  color: AppColors.white,
+                                                ),
+                                          ),
                                         ),
                                       );
                                     },

@@ -141,6 +141,26 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryBackground,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: _SheetAction(
+                    icon: FontAwesomeIcons.users,
+                    iconColor: AppColors.onSecondaryBackground,
+                    label: 'New group',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, AppRouter.createGroup);
+                    },
+                    showDivider: false,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(

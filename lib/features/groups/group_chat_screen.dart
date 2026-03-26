@@ -9,6 +9,7 @@ import 'package:chat/features/key_management/key_controller.dart';
 import 'package:chat/features/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -156,6 +157,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
         titleSpacing: 0,
         title: GestureDetector(
           onTap: () => Navigator.pushNamed(

@@ -71,7 +71,7 @@ class SettingsOption extends StatelessWidget {
                   const Spacer(),
                   if (trailing != null)
                     trailing!
-                  else if (hasArrow != null && hasArrow == false)
+                  else if (hasArrow != null && hasArrow == true)
                     SvgPicture.asset(
                       'assets/right_arrow.svg',
                       height: 20,

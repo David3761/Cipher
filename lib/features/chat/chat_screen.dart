@@ -6,6 +6,7 @@ import 'package:chat/features/chat/chat_controller.dart';
 import 'package:chat/features/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/database/app_database.dart';
 import 'chat_repository.dart';
@@ -125,6 +126,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
         titleSpacing: 0,
         title: GestureDetector(
           onTap: () => Navigator.pushNamed(

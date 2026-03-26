@@ -8,6 +8,7 @@ import 'package:chat/features/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class GroupListItem extends ConsumerWidget {
@@ -22,10 +23,8 @@ class GroupListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final messagesAsync =
-        ref.watch(groupMessagesStreamProvider(group.groupId));
-    final membersAsync =
-        ref.watch(groupMembersStreamProvider(group.groupId));
+    final messagesAsync = ref.watch(groupMessagesStreamProvider(group.groupId));
+    final membersAsync = ref.watch(groupMembersStreamProvider(group.groupId));
     final myPubKey = ref.watch(
       keyControllerProvider.select((s) => s.publicKeyHex ?? ''),
     );
@@ -67,12 +66,20 @@ class GroupListItem extends ConsumerWidget {
                   onPressed: (context) => confirmDelete(context, ref, group),
                   backgroundColor: AppColors.red,
                   foregroundColor: AppColors.white,
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      FaIcon(FontAwesomeIcons.trash, size: 20),
-                      SizedBox(height: 4),
-                      Text(
+                      SvgPicture.asset(
+                        'assets/trash_icon.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
                         'Leave',
                         style: TextStyle(
                           color: Colors.white,
@@ -124,9 +131,12 @@ class GroupListItem extends ConsumerWidget {
                                   if (messages.isEmpty) {
                                     return const SizedBox.shrink();
                                   }
-                                  return Text(
-                                    formatDateTimeContact(
-                                      messages.first.timestamp,
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Text(
+                                      formatDateTimeContact(
+                                        messages.first.timestamp,
+                                      ),
                                     ),
                                   );
                                 },
@@ -170,22 +180,27 @@ class GroupListItem extends ConsumerWidget {
                                     ),
                                   ),
                                   if (unreadCount > 0)
-                                    Container(
-                                      width: 20,
-                                      height: 20,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryBlue,
-                                        shape: BoxShape.circle,
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: 8.0,
                                       ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        unreadCount > 9
-                                            ? '+9'
-                                            : unreadCount.toString(),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall!
-                                            .copyWith(color: AppColors.white),
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryBlue,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          unreadCount > 9
+                                              ? '+9'
+                                              : unreadCount.toString(),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall!
+                                              .copyWith(color: AppColors.white),
+                                        ),
                                       ),
                                     ),
                                 ],

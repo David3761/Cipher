@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'add_contact_controller.dart';
 
@@ -38,7 +39,13 @@ class _AddContactScreenState extends ConsumerState<AddContactScreen> {
     final state = ref.watch(addContactControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Secure Contact')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Add Secure Contact'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(

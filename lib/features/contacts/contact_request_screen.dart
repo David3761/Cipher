@@ -14,7 +14,13 @@ class ContactRequestsScreen extends ConsumerWidget {
     final controller = ref.read(contactRequestControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Requests')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Requests'),
+      ),
       body: pendingAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),

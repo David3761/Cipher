@@ -3,6 +3,7 @@ import 'package:chat/core/providers.dart';
 import 'package:chat/features/contacts/contacts_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class BlockedContactsScreen extends ConsumerWidget {
   const BlockedContactsScreen({super.key});
@@ -13,7 +14,13 @@ class BlockedContactsScreen extends ConsumerWidget {
     final contactsRepo = ref.read(contactsRepositoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Blocked Contacts')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.angleLeft),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Blocked Contacts'),
+      ),
       body: blockedAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
