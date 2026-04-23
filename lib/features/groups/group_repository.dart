@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:chat/core/database/tables.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,10 +93,7 @@ class GroupRepository {
               expression: row.timestamp,
               mode: OrderingMode.desc,
             ),
-            (row) => OrderingTerm(
-              expression: row.id,
-              mode: OrderingMode.desc,
-            ),
+            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc),
           ]))
         .watch();
   }
@@ -138,11 +133,10 @@ class GroupRepository {
   }
 
   Future<void> removeMember(String groupId, String publicKey) async {
-    await (_db.delete(_db.groupMembers)
-          ..where(
-            (row) =>
-                row.groupId.equals(groupId) & row.publicKey.equals(publicKey),
-          ))
+    await (_db.delete(_db.groupMembers)..where(
+          (row) =>
+              row.groupId.equals(groupId) & row.publicKey.equals(publicKey),
+        ))
         .go();
   }
 
@@ -151,15 +145,18 @@ class GroupRepository {
         .write(GroupsCompanion(name: Value(name)));
   }
 
-  Future<void> updateGroupProfilePicture(String groupId, Uint8List? bytes) async {
+  Future<void> updateGroupProfilePicture(
+    String groupId,
+    Uint8List? bytes,
+  ) async {
     await (_db.update(_db.groups)..where((row) => row.groupId.equals(groupId)))
         .write(GroupsCompanion(profilePicture: Value(bytes)));
   }
 
   Stream<Group?> watchGroupById(String groupId) {
-    return (_db.select(_db.groups)
-          ..where((row) => row.groupId.equals(groupId)))
-        .watchSingleOrNull();
+    return (_db.select(
+      _db.groups,
+    )..where((row) => row.groupId.equals(groupId))).watchSingleOrNull();
   }
 
   Future<void> leaveGroup(String groupId, String myPubKey) async {
@@ -185,28 +182,30 @@ class GroupRepository {
     required String memberPubKey,
     required String lastReadMessageId,
   }) async {
-    await _db.into(_db.groupReadReceipts).insert(
-      GroupReadReceiptsCompanion.insert(
-        groupId: groupId,
-        memberPubKey: memberPubKey,
-        lastReadMessageId: lastReadMessageId,
-      ),
-      onConflict: DoUpdate(
-        (_) => GroupReadReceiptsCompanion(
-          lastReadMessageId: Value(lastReadMessageId),
-        ),
-        target: [
-          _db.groupReadReceipts.groupId,
-          _db.groupReadReceipts.memberPubKey,
-        ],
-      ),
-    );
+    await _db
+        .into(_db.groupReadReceipts)
+        .insert(
+          GroupReadReceiptsCompanion.insert(
+            groupId: groupId,
+            memberPubKey: memberPubKey,
+            lastReadMessageId: lastReadMessageId,
+          ),
+          onConflict: DoUpdate(
+            (_) => GroupReadReceiptsCompanion(
+              lastReadMessageId: Value(lastReadMessageId),
+            ),
+            target: [
+              _db.groupReadReceipts.groupId,
+              _db.groupReadReceipts.memberPubKey,
+            ],
+          ),
+        );
   }
 
   Stream<List<GroupReadReceipt>> watchReadReceiptsForGroup(String groupId) {
-    return (_db.select(_db.groupReadReceipts)
-          ..where((row) => row.groupId.equals(groupId)))
-        .watch();
+    return (_db.select(
+      _db.groupReadReceipts,
+    )..where((row) => row.groupId.equals(groupId))).watch();
   }
 
   Stream<int> watchUnreadCountForGroup(String groupId, String myPubKey) {
@@ -269,17 +268,21 @@ final groupReadReceiptsStreamProvider =
       return repository.watchReadReceiptsForGroup(groupId);
     });
 
-final groupUnreadCountProvider =
-    StreamProvider.family<int, (String, String)>((ref, args) {
-      final (groupId, myPubKey) = args;
-      final repository = ref.watch(groupRepositoryProvider);
-      if (repository == null) return const Stream.empty();
-      return repository.watchUnreadCountForGroup(groupId, myPubKey);
-    });
+final groupUnreadCountProvider = StreamProvider.family<int, (String, String)>((
+  ref,
+  args,
+) {
+  final (groupId, myPubKey) = args;
+  final repository = ref.watch(groupRepositoryProvider);
+  if (repository == null) return const Stream.empty();
+  return repository.watchUnreadCountForGroup(groupId, myPubKey);
+});
 
-final groupByIdStreamProvider =
-    StreamProvider.family<Group?, String>((ref, groupId) {
-      final repository = ref.watch(groupRepositoryProvider);
-      if (repository == null) return const Stream.empty();
-      return repository.watchGroupById(groupId);
-    });
+final groupByIdStreamProvider = StreamProvider.family<Group?, String>((
+  ref,
+  groupId,
+) {
+  final repository = ref.watch(groupRepositoryProvider);
+  if (repository == null) return const Stream.empty();
+  return repository.watchGroupById(groupId);
+});

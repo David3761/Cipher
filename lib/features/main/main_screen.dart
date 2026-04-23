@@ -32,7 +32,6 @@ class _MainScreenState extends State<MainScreen> {
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
         ),
-        //TODO: slight blur on the navbar
         child: BottomNavigationBar(
           backgroundColor: _selectedIndex == 1
               ? AppColors.secondaryBackground

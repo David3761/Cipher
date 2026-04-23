@@ -72,6 +72,20 @@ class CryptoService {
     }
   }
 
+  Uint8List decryptChallenge({
+    required Uint8List sealed,
+    required Uint8List nonce,
+    required Uint8List theirPublicKey,
+    required SecureKey mySecretKey,
+  }) {
+    return _sodium.crypto.box.openEasy(
+      cipherText: sealed,
+      nonce: nonce,
+      publicKey: theirPublicKey,
+      secretKey: mySecretKey,
+    );
+  }
+
   String decryptMessage({
     required String encryptedBase64,
     required SecureKey mySecretKey,

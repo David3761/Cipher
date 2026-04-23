@@ -73,7 +73,7 @@ class ConnectionController extends Notifier<ConnectionState> {
     ) async {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
 
-      if (hasConnection && state != ConnectionState.connected) {
+      if (hasConnection && state != ConnectionState.connecting && state != ConnectionState.connected) {
         await _waitForRepository(pubKey);
         await _connect(pubKey);
         _setupMessageListener();
@@ -86,12 +86,24 @@ class ConnectionController extends Notifier<ConnectionState> {
   Future<void> _connect(String pubKey) async {
     final wsService = ref.read(webSocketServiceProvider);
     final torNotifier = ref.read(torProvider.notifier);
+    final keyState = ref.read(keyControllerProvider);
+    final cryptoService = ref.read(cryptoServiceProvider);
 
     state = ConnectionState.connecting;
 
     try {
       final torPort = torNotifier.isReady ? torNotifier.port : null;
-      await wsService.connect(pubKey, torProxyPort: torPort);
+      await wsService.connect(
+        pubKey,
+        torProxyPort: torPort,
+        solveChallenge: (sealed, nonce, serverEphPub) async =>
+            cryptoService.decryptChallenge(
+              sealed: sealed,
+              nonce: nonce,
+              theirPublicKey: serverEphPub,
+              mySecretKey: keyState.activeSecretKey!,
+            ),
+      );
       state = ConnectionState.connected;
       ref.read(chatRepositoryProvider)?.dropExpiredPendingMessages();
     } catch (e) {

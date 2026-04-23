@@ -12,6 +12,14 @@ class WebSocketService {
   StreamController<Map<String, dynamic>>? _streamController;
   Stream<Map<String, dynamic>>? _broadcastStream;
   final List<Map<String, dynamic>> _messageQueue = [];
+  bool _authenticated = false;
+  Completer<void>? _authCompleter;
+  Future<Uint8List> Function(
+    Uint8List sealed,
+    Uint8List nonce,
+    Uint8List serverEphPub,
+  )?
+  _solveChallenge;
 
   Stream<Map<String, dynamic>>? get incomingMessages => _broadcastStream;
 
@@ -22,7 +30,16 @@ class WebSocketService {
   bool get isConnected =>
       _socket != null && _socket!.readyState == WebSocket.open;
 
-  Future<void> connect(String myPublicKey, {int? torProxyPort}) async {
+  Future<void> connect(
+    String myPublicKey, {
+    int? torProxyPort,
+    Future<Uint8List> Function(
+      Uint8List sealed,
+      Uint8List nonce,
+      Uint8List serverEphPub,
+    )?
+    solveChallenge,
+  }) async {
     final String wsUrl =
         'wss://secure-relay-server-production.up.railway.app/ws?pubkey=$myPublicKey';
 
@@ -37,11 +54,28 @@ class WebSocketService {
       }
 
       _socket!.pingInterval = const Duration(seconds: 30);
+
+      if (solveChallenge != null) {
+        _solveChallenge = solveChallenge;
+        _authenticated = false;
+        _authCompleter = Completer<void>();
+      } else {
+        _authenticated = true;
+      }
+
       _setupStream();
+
+      if (solveChallenge != null) {
+        await _authCompleter!.future.timeout(
+          const Duration(seconds: 20),
+          onTimeout: () => throw Exception('Authentication timed out'),
+        );
+      }
+
       debugPrint('WebSocket Connected: $wsUrl (tor: ${torProxyPort != null})');
     } catch (e) {
       debugPrint('WebSocket Connection Failed: $e');
-      throw Exception('Failed to conncet: $e');
+      throw Exception('Failed to connect: $e');
     }
   }
 
@@ -82,30 +116,81 @@ class WebSocketService {
 
     _socket!.listen(
       (event) {
-        if (event is String) {
-          try {
-            final decoded = jsonDecode(event) as Map<String, dynamic>;
-            if (_streamController!.hasListener) {
-              _streamController?.add(decoded);
-            } else {
-              _messageQueue.add(decoded);
-            }
-          } catch (e) {
-            debugPrint('Failed to decode message: $e');
-          }
+        if (event is! String) return;
+        Map<String, dynamic> decoded;
+        try {
+          decoded = jsonDecode(event) as Map<String, dynamic>;
+        } catch (e) {
+          debugPrint('Failed to decode message: $e');
+          return;
+        }
+
+        if (!_authenticated && decoded['type'] == 'challenge') {
+          _handleChallenge(decoded).catchError((e) {
+            _authCompleter?.completeError(e);
+          });
+          return;
+        }
+
+        if (!_authenticated) return;
+
+        if (_streamController!.hasListener) {
+          _streamController?.add(decoded);
+        } else {
+          _messageQueue.add(decoded);
         }
       },
       onError: (e) {
         debugPrint('WebSocket error: $e');
+        if (_authCompleter != null && !_authCompleter!.isCompleted) {
+          _authCompleter!.completeError(e);
+        }
         _streamController?.addError(e);
       },
       onDone: () {
         debugPrint('WebSocket Disconnected');
+        if (_authCompleter != null && !_authCompleter!.isCompleted) {
+          _authCompleter!.completeError(
+            Exception('Connection closed during authentication'),
+          );
+        }
         _streamController?.close();
       },
     );
 
     _broadcastStream = _streamController!.stream;
+  }
+
+  Future<void> _handleChallenge(Map<String, dynamic> msg) async {
+    final solver = _solveChallenge!;
+
+    final ephPubBytes = _hexDecode(msg['ephemeral_pub'] as String);
+    final nonceBytes = _hexDecode(msg['nonce'] as String);
+    final sealedBytes = base64Decode(msg['sealed'] as String);
+
+    final solution = await solver(sealedBytes, nonceBytes, ephPubBytes);
+
+    _socket!.add(
+      jsonEncode({
+        'type': 'challenge_response',
+        'solution': _hexEncode(solution),
+      }),
+    );
+
+    _authenticated = true;
+    _authCompleter?.complete();
+  }
+
+  static Uint8List _hexDecode(String hex) {
+    final bytes = Uint8List(hex.length ~/ 2);
+    for (int i = 0; i < hex.length; i += 2) {
+      bytes[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+    }
+    return bytes;
+  }
+
+  static String _hexEncode(Uint8List bytes) {
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   int sendMessage({
@@ -182,6 +267,9 @@ class WebSocketService {
     _streamController = null;
     _broadcastStream = null;
     _messageQueue.clear();
+    _authenticated = false;
+    _authCompleter = null;
+    _solveChallenge = null;
     debugPrint('WebSocket Disconnected');
   }
 }
